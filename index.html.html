@@ -1,0 +1,1569 @@
+<!DOCTYPE html>
+<html lang="lo">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>ໂອເລ້ ອົກຊີ້ເຢັນ Ambulance Database</title>
+<meta property="og:title" content="ໂອເລ້ ອົກຊີ້ເຢັນ Ambulance Database">
+<meta property="og:description" content="ລະບົບບັນທຶກການນຳສົ່ງຜູ້ປ່ວຍ ແລະ ບັນຊີລາຍຮັບ-ລາຍຈ່າຍ (Cloud Realtime)">
+<meta property="og:type" content="website">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="ໂອເລ້ ອົກຊີ້ເຢັນ">
+<meta name="theme-color" content="#2563eb">
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Phetsarath:wght@400;700&display=swap" rel="stylesheet">
+<style>
+body { font-family: 'Phetsarath', sans-serif; box-sizing: border-box; touch-action: manipulation; }
+button, select { cursor: pointer; }
+@keyframes pulse-green {
+0%, 100% { opacity: 1; transform: scale(1); }
+50% { opacity: 0.4; transform: scale(1.2); }
+}
+.pulse-dot { animation: pulse-green 2s infinite; }
+input[type="date"] { text-align: left !important; direction: ltr !important; width: 100% !important; box-sizing: border-box; }
+
+@media print {
+@page { size: portrait; margin: 15mm; }
+body * { visibility: hidden; }
+#summaryPreviewPrintArea, #summaryPreviewPrintArea * { visibility: visible; }
+#summaryPreviewPrintArea { position: absolute; left: 50%; top: 20px; transform: translateX(-50%); width: 100% !important; max-width: 170mm !important; margin: 0 auto !important; background: white; overflow: visible !important; border: none !important; box-shadow: none !important; display: flex; flex-direction: column; align-items: center; }
+.no-print { display: none !important; }
+}
+
+.pdf-page-container { page-break-inside: avoid; }
+tr { page-break-inside: avoid; page-break-after: auto; }
+thead { display: table-header-group; }
+tfoot { display: table-footer-group; }
+</style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen pb-28">
+
+<div id="errorScreen" class="fixed inset-0 bg-slate-900 text-white z-[999999] hidden flex flex-col items-center justify-center p-6 text-center">
+<div class="w-16 h-16 bg-rose-600 rounded-full flex items-center justify-center text-2xl mb-4"><i class="fa-solid fa-triangle-exclamation"></i></div>
+<h2 class="text-lg font-bold mb-2">ເກີດຂໍ້ຜິດພາດໃນການໂຫຼດລະບົບ</h2>
+<p id="errorMsgText" class="text-xs text-slate-300 max-w-md mb-4"></p>
+<button onclick="location.reload()" class="bg-blue-600 px-5 py-2.5 rounded-2xl text-xs font-bold">ຣີເຟຣຊໜ້າຈໍໃໝ່</button>
+</div>
+
+<div id="loginOverlay" class="fixed inset-0 bg-slate-900/70 z-[99999] flex items-center justify-center p-3 backdrop-blur-sm pointer-events-auto">
+<div class="bg-white w-full max-w-md rounded-3xl p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto relative z-[100000] pointer-events-auto border border-blue-100">
+<div class="text-center space-y-1.5">
+<div class="w-16 h-16 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mx-auto text-2xl shadow-inner">
+<i class="fa-solid fa-ambulance"></i>
+</div>
+<h2 id="authTitle" class="text-xl font-extrabold text-slate-800">ເຂົ້າສູ່ລະບົບ</h2>
+<p id="authSubtitle" class="text-xs text-slate-500 font-medium">ໂອເລ້ ອົກຊີ້ເຢັນ Ambulance Database</p>
+</div>
+<div id="loginFormContainer" class="space-y-3.5">
+<div>
+<label class="block text-xs font-bold text-slate-700 mb-1">ຊື່ຜູ້ໃຊ້ ຫຼື ເບີໂທລະສັບ (Username or Phone)</label>
+<input type="text" id="loginUser" placeholder="ຊື່ຜູ້ໃຊ້ ຫຼື ເບີໂທລະສັບ..." class="w-full bg-slate-50 border border-slate-300 rounded-2xl px-3.5 py-3 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-600 text-left">
+</div>
+<div>
+<label class="block text-xs font-bold text-slate-700 mb-1">ລະຫັດຜ່ານ (Password)</label>
+<div class="relative flex items-center">
+<input type="password" id="loginPass" placeholder="ລະຫັດຜ່ານ..." class="w-full bg-slate-50 border border-slate-300 rounded-2xl pl-3.5 pr-10 py-3 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-600 text-left">
+<button type="button" onclick="window.togglePasswordVisibility('loginPass', 'eyeIconLogin')" class="absolute right-3.5 px-1 py-1 text-slate-400 hover:text-slate-600 cursor-pointer z-20">
+<i id="eyeIconLogin" class="fa-solid fa-eye text-xs"></i>
+</button>
+</div>
+</div>
+<div class="pt-1">
+<button type="button" onclick="window.handleLogin()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-2xl shadow-lg shadow-blue-600/30 transition cursor-pointer text-xs sm:text-sm">ເຂົ້າສູ່ລະບົບ</button>
+</div>
+<div class="text-center pt-1">
+<button type="button" onclick="window.switchAuthMode('register')" class="text-xs text-blue-600 hover:underline font-bold cursor-pointer">ຍັງບໍ່ມີບັນຊີ? ສະໝັກສະມາຊິກ</button>
+</div>
+</div>
+<div id="registerFormContainer" class="space-y-3.5 hidden">
+<div>
+<label class="block text-xs font-bold text-slate-700 mb-1">ຊື່-ນາມສະກຸນ (Full Name)</label>
+<input type="text" id="regName" placeholder="ຊື່ ແລະ ນາມສະກຸນ..." class="w-full bg-slate-50 border border-slate-300 rounded-2xl px-3.5 py-3 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-600 text-left">
+</div>
+<div>
+<label class="block text-xs font-bold text-slate-700 mb-1">ເບີໂທລະສັບ (Phone Number)</label>
+<input type="tel" id="regPhone" placeholder="ຕົວຢ່າງ: 020 XXXXXXXX" class="w-full bg-slate-50 border border-slate-300 rounded-2xl px-3.5 py-3 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-600 text-left">
+</div>
+<div>
+<label class="block text-xs font-bold text-slate-700 mb-1">ຊື່ຜູ້ໃຊ້ (Username)</label>
+<input type="text" id="regUser" placeholder="ຕັ້ງຊື່ຜູ້ໃຊ້..." class="w-full bg-slate-50 border border-slate-300 rounded-2xl px-3.5 py-3 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-600 text-left">
+</div>
+<div>
+<label class="block text-xs font-bold text-slate-700 mb-1">ລະຫັດຜ່ານ (Password)</label>
+<div class="relative flex items-center">
+<input type="password" id="regPass" placeholder="ຕັ້ງລະຫັດຜ່ານ..." class="w-full bg-slate-50 border border-slate-300 rounded-2xl pl-3.5 pr-10 py-3 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-600 text-left">
+<button type="button" onclick="window.togglePasswordVisibility('regPass', 'eyeIconReg')" class="absolute right-3.5 px-1 py-1 text-slate-400 hover:text-slate-600 cursor-pointer z-20">
+<i id="eyeIconReg" class="fa-solid fa-eye text-xs"></i>
+</button>
+</div>
+</div>
+<div class="pt-1">
+<button type="button" onclick="window.handleRegister()" class="w-full bg-teal-600 hover:bg-teal-700 text-white font-bold py-3 rounded-2xl shadow-lg shadow-teal-600/30 transition cursor-pointer text-xs sm:text-sm">ລົງທະບຽນສະໝັກ</button>
+</div>
+<div class="text-center pt-1">
+<button type="button" onclick="window.switchAuthMode('login')" class="text-xs text-slate-600 hover:underline font-bold cursor-pointer">ມີບັນຊີແລ້ວ? ເຂົ້າສູ່ລະບົບ</button>
+</div>
+</div>
+</div>
+</div>
+
+<div class="w-full max-w-7xl mx-auto bg-white min-h-screen shadow-2xl flex flex-col px-2 sm:px-6">
+<header class="bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 text-white p-3 sm:p-4 my-2.5 rounded-3xl shadow-lg flex flex-col items-center text-center gap-2.5 border border-blue-400/30">
+<div class="space-y-0.5">
+<h1 class="text-sm sm:text-lg font-black tracking-wide drop-shadow"><i class="fa-solid fa-ambulance mr-2 text-amber-300"></i>ໂອເລ້ ອົກຊີ້ເຢັນ Ambulance Database</h1>
+<p id="connectionStatus" class="text-[10px] text-emerald-300 font-bold bg-emerald-950/30 px-2.5 py-0.5 rounded-full inline-block border border-emerald-500/30"><i class="fa-solid fa-cloud mr-1.5"></i>ເຊື່ອມຕໍ່ລະບົບຄລາວ Realtime ສຳເລັດ</p>
+</div>
+
+<div class="w-full pt-1 border-t border-blue-500/40 space-y-2 max-w-2xl mx-auto">
+<div class="grid grid-cols-2 gap-2 w-full items-center">
+<div id="userBadge" onclick="window.openProfileModal()" class="flex items-center justify-between bg-blue-800/90 hover:bg-blue-800 px-3.5 py-3 rounded-2xl text-xs font-bold text-white shadow-md transition cursor-pointer w-full border border-blue-400/50 backdrop-blur-sm min-w-0">
+<div class="flex items-center gap-2 min-w-0">
+<i class="fa-solid fa-user-shield text-amber-300 shrink-0 text-sm"></i>
+<span id="currentUserName" class="font-black text-xs truncate">Admin</span>
+</div>
+<div class="flex items-center gap-1.5 shrink-0 ml-1">
+<span id="currentUserRoleBadge" class="text-[10px] bg-blue-600 text-white px-2 py-0.5 rounded-xl font-bold shadow-sm whitespace-nowrap">ຜູ້ດູແລລະບົບ</span>
+<span class="w-2 h-2 bg-emerald-400 rounded-full pulse-dot shrink-0" title="Cloud Live"></span>
+</div>
+</div>
+<button type="button" id="adminUsersBtn" onclick="window.openUsersModal()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3.5 py-3 rounded-2xl shadow-md transition flex items-center justify-center cursor-pointer w-full border border-emerald-500/60 text-center gap-1.5 min-w-0">
+<i class="fa-solid fa-users-gear text-amber-200 text-sm shrink-0"></i> <span class="truncate">ຈັດການຜູ້ໃຊ້</span>
+</button>
+</div>
+
+<div class="grid grid-cols-3 gap-2 w-full">
+<button type="button" onclick="window.openChartModal()" class="bg-cyan-600 hover:bg-cyan-700 text-white text-[11px] font-bold px-2 py-2.5 rounded-xl shadow-md transition flex items-center justify-center cursor-pointer whitespace-nowrap border border-cyan-400/50">
+<i class="fa-solid fa-chart-pie mr-1 text-amber-200 text-[11px]"></i> ກຣາຟສະຖິຕິ
+</button>
+<button type="button" onclick="window.openPrintModal()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold px-2 py-2.5 rounded-xl shadow-md transition flex items-center justify-center cursor-pointer whitespace-nowrap border border-emerald-400/50">
+<i class="fa-solid fa-print mr-1 text-amber-200 text-[11px]"></i> ເອກະສານ
+</button>
+<button type="button" onclick="window.exportToCSV()" class="bg-amber-600 hover:bg-amber-700 text-white text-[11px] font-bold px-2 py-2.5 rounded-xl shadow-md transition flex items-center justify-center cursor-pointer whitespace-nowrap border border-amber-400/50">
+<i class="fa-solid fa-file-excel mr-1 text-white text-[11px]"></i> ສົ່ງອອກ Excel
+</button>
+<button type="button" onclick="window.openBackupModal()" class="bg-sky-600 hover:bg-sky-700 text-white text-[11px] font-bold px-2 py-2.5 rounded-xl shadow-md transition flex items-center justify-center cursor-pointer whitespace-nowrap border border-sky-400/50">
+<i class="fa-solid fa-database mr-1 text-amber-200 text-[11px]"></i> ສຳຮອງຂໍ້ມູນ
+</button>
+<button type="button" onclick="window.openRateModal()" class="bg-purple-600 hover:bg-purple-700 text-white text-[11px] font-bold px-2 py-2.5 rounded-xl shadow-md transition flex items-center justify-center cursor-pointer whitespace-nowrap border border-purple-400/50">
+<i class="fa-solid fa-money-bill-transfer mr-1 text-amber-200 text-[11px]"></i> ຕັ້ງຄ່າເລດເງິນ
+</button>
+<button type="button" onclick="window.handleLogout()" class="bg-rose-600 hover:bg-rose-700 text-white text-[11px] font-bold px-2 py-2.5 rounded-xl shadow-md transition flex items-center justify-center cursor-pointer whitespace-nowrap border border-rose-400/50">
+<i class="fa-solid fa-right-from-bracket mr-1 text-[11px]"></i> ອອກຈາກລະບົບ
+</button>
+</div>
+</div>
+</header>
+
+<div class="bg-white p-3.5 rounded-2xl mb-3.5 shadow-sm border border-slate-200/80 flex flex-col gap-2.5">
+<div class="flex items-center gap-2 w-full">
+<label for="monthFilter" class="text-xs font-bold text-slate-700 whitespace-nowrap"><i class="fa-solid fa-filter text-blue-600 mr-1"></i> ເລືອກເດືອນ/ປີ:</label>
+<select id="monthFilter" onchange="window.filterRecords()" class="bg-slate-50 border border-slate-300 rounded-2xl px-3.5 py-2 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-blue-600 w-full text-left">
+<option value="all">ທັງໝົດ (All)</option>
+</select>
+</div>
+<div class="grid grid-cols-2 gap-2 w-full items-center">
+<input type="text" id="searchInput" oninput="window.filterRecords()" placeholder="ຄົ້ນຫາຊື່ເຄສ..." class="w-full bg-slate-50 border border-slate-300 rounded-2xl px-3.5 py-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-600 text-left">
+<button type="button" onclick="window.openModal()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold px-3 py-2.5 rounded-2xl shadow-md transition cursor-pointer text-xs whitespace-nowrap flex items-center justify-center gap-1">
+<i class="fa-solid fa-plus text-xs"></i> <span>ເພີ່ມເຄສໃໝ່</span>
+</button>
+</div>
+</div>
+
+<div id="dashboardSummaryBox" class="mb-3.5 bg-white p-4 rounded-3xl shadow-sm border border-slate-200/80">
+<div class="flex items-center justify-between px-1 mb-2">
+<div class="flex items-center gap-2 flex-wrap">
+<i class="fa-solid fa-chart-column text-blue-600 text-sm shrink-0"></i>
+<span class="font-extrabold text-slate-800 text-xs sm:text-sm">ຕາຕະລາງສະຫຼຸບຍອດລວມ</span>
+<span id="summaryMonthLabel" class="text-blue-700 font-bold bg-blue-50 px-2.5 py-0.5 rounded-xl border border-blue-100 text-[11px] shrink-0">(ເດືອນ 10/2026)</span>
+</div>
+<div class="relative">
+<button type="button" onclick="window.toggleSummaryMenu(event)" class="text-slate-700 hover:text-blue-600 bg-slate-100 hover:bg-blue-50 px-3 py-1.5 rounded-xl border border-slate-200 transition font-bold flex items-center gap-1.5 shrink-0 cursor-pointer text-xs">
+<i class="fa-solid fa-ellipsis-vertical text-xs"></i> ເມນູ
+</button>
+<div id="summaryMenuDropdown" class="hidden absolute right-0 mt-1 w-48 bg-white rounded-2xl shadow-2xl border border-slate-100 z-50 py-1.5 text-xs">
+<button type="button" onclick="window.exportSummaryAction('pdf')" class="w-full text-left px-3.5 py-2.5 hover:bg-blue-50 flex items-center gap-2.5 text-slate-700 font-bold cursor-pointer">
+<i class="fa-solid fa-file-pdf text-amber-600 w-4"></i> ດາວໂຫຼດ PDF
+</button>
+<button type="button" onclick="window.exportSummaryAction('image')" class="w-full text-left px-3.5 py-2.5 hover:bg-blue-50 flex items-center gap-2.5 text-slate-700 font-bold cursor-pointer">
+<i class="fa-solid fa-image text-blue-600 w-4"></i> ບັນທຶກເປັນຮູບ
+</button>
+<button type="button" onclick="window.exportSummaryAction('print')" class="w-full text-left px-3.5 py-2.5 hover:bg-blue-50 flex items-center gap-2.5 text-slate-700 font-bold cursor-pointer">
+<i class="fa-solid fa-print text-emerald-600 w-4"></i> ສັ່ງພິມ
+</button>
+</div>
+</div>
+</div>
+<div class="px-1 -mt-1 mb-2 text-left">
+<span id="summaryTotalCasesLabel" class="text-xs text-slate-500 font-bold inline-flex items-center gap-1.5"><i class="fa-solid fa-list-check text-blue-600 text-xs"></i>(ລວມທັງໝົດ 0 ເຄສ)</span>
+</div>
+<div class="overflow-x-auto mt-1">
+<table id="summaryTableElement" class="w-full text-xs sm:text-sm border-collapse table-fixed">
+<thead>
+<tr class="bg-blue-600 text-white font-bold text-xs sm:text-sm">
+<th class="py-2.5 px-3.5 text-left border border-blue-700 w-[50%]">ລາຍການຫຼັກ / ຄ່າໃຊ້ຈ່າຍ</th>
+<th class="py-2.5 px-3.5 text-right border border-blue-700 w-[50%]">ຈຳນວນເງິນລວມ</th>
+</tr>
+</thead>
+<tbody id="dashboardSummaryTbody">
+<tr class="bg-slate-50/50"><td class="py-2.5 px-3.5 border border-slate-200 font-bold text-emerald-700 text-sm"><i class="fa-solid fa-arrow-trend-up mr-2"></i>ລາຍຮັບລວມ</td><td class="py-2.5 px-3.5 border border-slate-200 text-right text-base font-black text-emerald-700">0 ₭</td></tr>
+<tr class="bg-slate-50/50"><td class="py-2.5 px-3.5 border border-slate-200 font-bold text-rose-700 text-xs sm:text-sm"><i class="fa-solid fa-gas-pump mr-2"></i>ຄ່ານ້ຳມັນລວມ</td><td class="py-2.5 px-3.5 border border-slate-200 text-right text-xs sm:text-sm font-bold text-rose-700">0 ₭</td></tr>
+<tr class="bg-slate-50/50"><td class="py-2.5 px-3.5 border border-slate-200 font-bold text-amber-700 text-xs sm:text-sm"><i class="fa-solid fa-utensils mr-2"></i>ຄ່າກິນລວມ</td><td class="py-2.5 px-3.5 border border-slate-200 text-right text-xs sm:text-sm font-bold text-amber-700">0 ₭</td></tr>
+<tr class="bg-slate-50/50"><td class="py-2.5 px-3.5 border border-slate-200 font-bold text-purple-700 text-xs sm:text-sm"><i class="fa-solid fa-wallet mr-2"></i>ເງິນເບີກລວມ</td><td class="py-2.5 px-3.5 border border-slate-200 text-right text-xs sm:text-sm font-bold text-purple-700">0 ₭</td></tr>
+<tr class="bg-slate-50/50"><td class="py-2.5 px-3.5 border border-slate-200 font-bold text-teal-700 text-xs sm:text-sm"><i class="fa-solid fa-receipt mr-2"></i>ຄ່າໃຊ້ຈ່າຍອື່ນໆລວມ</td><td class="py-2.5 px-3.5 border border-slate-200 text-right text-xs sm:text-sm font-bold text-teal-700">0 ₭</td></tr>
+<tr class="bg-blue-50 font-bold text-xs sm:text-sm"><td class="py-3 px-3.5 border border-blue-200 text-blue-950 text-sm font-black"><i class="fa-solid fa-scale-balanced mr-2"></i>ຍອດເງີນເຫຼືອທັງໝົດ</td><td class="py-3 px-3.5 border border-blue-200 text-right text-base font-black text-blue-900" id="sumNetText">0 ₭</td></tr>
+</tbody>
+</table>
+</div>
+</div>
+
+<div class="text-center pt-1 pb-3 border-b border-slate-200 mb-3">
+<span class="text-xs text-slate-600 font-bold" id="filterCountInfo">ສະແດງທັງໝົດ 0 ລາຍການ</span>
+</div>
+
+<div class="flex-1 w-full overflow-x-auto pb-20">
+<div class="inline-block min-w-full align-middle">
+<table class="w-auto min-w-full divide-y divide-slate-200 text-left text-xs sm:text-sm border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+<thead class="bg-slate-100 text-slate-700 font-bold">
+<tr>
+<th class="py-3 px-3 text-center whitespace-nowrap border-b">ລຳດັບ</th>
+<th class="py-3 px-3 whitespace-nowrap border-b">ປະເພດລາຍການ</th>
+<th class="py-3 px-3 whitespace-nowrap border-b">ຊື່ເຄສ</th>
+<th class="py-3 px-3 whitespace-nowrap border-b">ວັນທີ.ເດືອນ.ປີ</th>
+<th class="py-3 px-3 whitespace-nowrap min-w-[190px] border-b">ຕົ້ນທາງ - ປາຍທາງ</th>
+<th class="py-3 px-3 text-right whitespace-nowrap border-b">ລາຍຮັບ</th>
+<th class="py-3 px-3 text-right whitespace-nowrap border-b">ຄ່ານ້ຳມັນ</th>
+<th class="py-3 px-3 text-right whitespace-nowrap border-b">ຄ່າກິນ</th>
+<th class="py-3 px-3 text-right whitespace-nowrap border-b">ເງິນເບີກ</th>
+<th class="py-3 px-3 text-right whitespace-nowrap border-b">ຄ່າໃຊ້ຈ່າຍອື່ນໆ</th>
+<th class="py-3 px-3 text-right whitespace-nowrap border-b">ຍອດເຫຼືອ</th>
+<th class="py-3 px-3 whitespace-nowrap border-b">ໝາຍເຫດ</th>
+<th id="tableHeaderAction" class="py-3 px-3 text-center whitespace-nowrap border-b">ການຈັດການ</th>
+</tr>
+</thead>
+<tbody id="recordTableBody" class="divide-y divide-slate-200 bg-white"></tbody>
+</table>
+</div>
+<div id="emptyState" class="text-center py-12 text-slate-400 hidden">
+<i class="fa-solid fa-folder-open text-4xl mb-2"></i>
+<p class="text-xs font-semibold">ບໍ່ມີຂໍ້ມູນໃນລະບົບ</p>
+</div>
+</div>
+
+<div id="profileModal" class="fixed inset-0 bg-black/60 z-50 hidden flex items-center justify-center p-3">
+<div class="bg-white w-full max-w-xs rounded-3xl p-6 shadow-2xl space-y-4 text-center border border-slate-100">
+<div class="w-16 h-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto text-2xl shadow-inner">
+<i class="fa-solid fa-user-tie"></i>
+</div>
+<div>
+<h3 id="profileFullName" class="text-base font-extrabold text-slate-800">-</h3>
+<p id="profileRoleText" class="text-xs text-blue-600 font-bold mt-0.5">-</p>
+</div>
+<div class="bg-slate-50 p-3.5 rounded-2xl text-left space-y-2 text-xs border border-slate-100">
+<div><span class="text-slate-400 block font-bold">ຊື່ຜູ້ໃຊ້:</span> <span id="profileUsername" class="text-slate-700 font-black">-</span></div>
+<div><span class="text-slate-400 block font-bold">ເບີໂທລະສັບ:</span> <span id="profilePhone" class="text-slate-700 font-black">-</span></div>
+</div>
+<button type="button" onclick="window.closeProfileModal()" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-2xl text-xs font-bold shadow-md cursor-pointer">ປິດໜ້າຕ່າງ</button>
+</div>
+</div>
+
+<div id="editMasterModal" class="fixed inset-0 bg-black/60 z-[99999] hidden flex items-center justify-center p-3">
+<div class="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl space-y-4 border border-slate-100 relative z-[100000]">
+<div class="flex justify-between items-center border-b pb-3">
+<h3 class="text-sm font-bold text-slate-800"><i class="fa-solid fa-user-gear mr-2 text-blue-600"></i>ແກ້ໄຂຂໍ້ມູນ Master Admin</h3>
+<button type="button" onclick="window.closeEditMasterModal()" class="text-slate-400 hover:text-slate-600 p-1 cursor-pointer"><i class="fa-solid fa-xmark text-lg"></i></button>
+</div>
+<div class="space-y-3 text-xs">
+<div>
+<label class="block font-bold text-slate-700 mb-1">ຊື່-ນາມສະກຸນ (Name):</label>
+<input type="text" id="editMasterName" class="w-full bg-slate-50 border border-slate-300 rounded-2xl px-3.5 py-2.5 text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-600">
+</div>
+<div>
+<label class="block font-bold text-slate-700 mb-1">ເບີໂທລະສັບ (Phone):</label>
+<input type="text" id="editMasterPhone" class="w-full bg-slate-50 border border-slate-300 rounded-2xl px-3.5 py-2.5 text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-600">
+</div>
+<div>
+<label class="block font-bold text-slate-700 mb-1">ຊື່ຜູ້ໃຊ້ (Username):</label>
+<input type="text" id="editMasterUsername" class="w-full bg-slate-50 border border-slate-300 rounded-2xl px-3.5 py-2.5 text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-600">
+</div>
+<div>
+<label class="block font-bold text-slate-700 mb-1">ລະຫັດຜ່ານ (Password):</label>
+<input type="text" id="editMasterPassword" class="w-full bg-slate-50 border border-slate-300 rounded-2xl px-3.5 py-2.5 text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-600">
+</div>
+<div class="pt-2">
+<button type="button" onclick="window.saveMasterAdminChanges()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-2xl shadow-md transition cursor-pointer text-xs"><i class="fa-solid fa-floppy-disk mr-1.5"></i> ບັນທຶກການແກ້ໄຂ</button>
+</div>
+</div>
+</div>
+</div>
+
+<div id="usersModal" class="fixed inset-0 bg-black/60 z-[99999] hidden flex items-center justify-center p-2">
+<div class="bg-white w-full max-w-5xl rounded-3xl p-4 sm:p-6 shadow-2xl max-h-[85vh] flex flex-col space-y-3.5 relative border border-slate-100">
+<div class="flex justify-between items-center border-b pb-3 shrink-0">
+<h2 class="text-xs sm:text-sm font-bold text-slate-800"><i class="fa-solid fa-users-gear mr-2 text-blue-600"></i>ຈັດການບັນຊີຜູ້ໃຊ້ ແລະ ສິດການໃຊ້ງານ</h2>
+<button type="button" onclick="window.closeUsersModal()" class="text-slate-400 hover:text-slate-600 p-1.5 cursor-pointer"><i class="fa-solid fa-xmark text-lg"></i></button>
+</div>
+<div class="flex-1 overflow-y-auto space-y-3.5 pr-1 text-xs">
+<p class="text-xs text-slate-500 pt-1 font-medium">ສາມາດຕັ້ງຄ່າສະຖານະອະນຸມັດ, ປ່ຽນລະດັບສິດ ຫຼື ຈັດການບັນຊີຜູ້ໃຊ້ງານທັງໝົດໄດ້ທີ່ນີ້ (ສາມາດເລື່ອນຕາຕະລາງຊ້າຍ-ຂວາໄດ້ໃນມືຖື):</p>
+<div class="border rounded-2xl overflow-x-auto shadow-sm max-w-full">
+<table class="w-full text-left text-xs divide-y divide-slate-200 min-w-[750px]">
+<thead class="bg-slate-100 text-slate-700 sticky top-0 font-bold">
+<tr>
+<th class="p-3 whitespace-nowrap min-w-[130px]">ຊື່-ນາມສະກຸນ</th>
+<th class="p-3 whitespace-nowrap min-w-[110px]">ເບີໂທລະສັບ</th>
+<th class="p-3 whitespace-nowrap min-w-[100px]">Username</th>
+<th class="p-3 whitespace-nowrap min-w-[90px]">Password</th>
+<th class="p-3 whitespace-nowrap min-w-[100px]">Role</th>
+<th class="p-3 whitespace-nowrap min-w-[120px]">ສິດການໃຊ້ງານ</th>
+<th class="p-3 whitespace-nowrap min-w-[90px]">ສະຖານະ</th>
+<th class="p-3 text-center whitespace-nowrap min-w-[120px]">ການຈັດການ</th>
+</tr>
+</thead>
+<tbody id="usersTableBody" class="divide-y divide-slate-200 bg-white"></tbody>
+</table>
+</div>
+</div>
+</div>
+</div>
+
+<div id="rateModal" class="fixed inset-0 bg-black/60 z-[99999] hidden flex items-center justify-center p-3">
+<div class="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl space-y-4 border border-slate-100">
+<div class="flex justify-between items-center border-b pb-3">
+<h3 class="text-sm font-bold text-slate-800"><i class="fa-solid fa-money-bill-transfer mr-2 text-blue-600"></i>ຕັ້ງຄ່າເລດອັດຕາແລກປ່ຽນ</h3>
+<button type="button" onclick="window.closeRateModal()" class="text-slate-400 hover:text-slate-600 p-1 cursor-pointer"><i class="fa-solid fa-xmark text-lg"></i></button>
+</div>
+<div class="space-y-3.5 text-xs">
+<div>
+<label class="block font-bold text-slate-700 mb-1">1 ฿ (THB) ເທົ່າກັບກີ່ກີບ:</label>
+<input type="text" id="rateTHB" value="" oninput="window.formatMoneyInput(this)" class="w-full bg-slate-50 border border-slate-300 rounded-2xl px-3.5 py-2.5 text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-600">
+</div>
+<div>
+<label class="block font-bold text-slate-700 mb-1">$1 (USD) ເທົ່າກັບກີ່ກີບ:</label>
+<input type="text" id="rateUSD" value="" oninput="window.formatMoneyInput(this)" class="w-full bg-slate-50 border border-slate-300 rounded-2xl px-3.5 py-2.5 text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-600">
+</div>
+<div class="pt-2">
+<button type="button" onclick="window.saveExchangeRates()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-2xl shadow-md transition cursor-pointer text-xs"><i class="fa-solid fa-floppy-disk mr-1.5"></i> ບັນທຶກເລດອັດຕາແລກປ່ຽນ</button>
+</div>
+</div>
+</div>
+</div>
+
+<div id="summaryPreviewModal" class="fixed inset-0 bg-black/60 z-[99999] hidden flex items-center justify-center p-3">
+<div class="bg-white w-full max-w-2xl rounded-3xl p-6 shadow-2xl max-h-[90vh] flex flex-col space-y-4 border border-slate-100">
+<div class="flex justify-between items-center border-b pb-3 shrink-0">
+<h3 class="text-sm font-bold text-slate-800"><i class="fa-solid fa-file-pdf mr-2 text-amber-600"></i>ດາວໂຫຼດ PDF ຕາຕະລາງສະຫຼຸບຍອດລວມ</h3>
+<div class="flex items-center gap-2">
+<button type="button" onclick="window.downloadSummaryPDFDirect()" class="bg-amber-600 hover:bg-amber-700 text-white text-xs px-4 py-2 rounded-2xl font-bold cursor-pointer shadow"><i class="fa-solid fa-download mr-1.5"></i> ດາວໂຫຼດ PDF</button>
+<button type="button" onclick="window.closeSummaryPreviewModal()" class="text-slate-400 hover:text-slate-600 p-1 cursor-pointer"><i class="fa-solid fa-xmark text-lg"></i></button>
+</div>
+</div>
+<div class="flex-1 overflow-y-auto bg-slate-100 p-4 rounded-2xl flex justify-center items-center">
+<div id="summaryPreviewPrintArea" class="bg-white w-full max-w-[170mm] p-6 shadow-xl text-xs sm:text-sm text-slate-800 space-y-4 rounded-2xl border mx-auto flex flex-col items-center pdf-page-container"></div>
+</div>
+</div>
+</div>
+
+<div id="casePrintModal" class="fixed inset-0 bg-black/60 z-50 hidden flex items-center justify-center p-2">
+<div class="bg-white w-full max-w-xl rounded-3xl p-5 shadow-2xl max-h-[90vh] flex flex-col space-y-3.5 border border-slate-100">
+<div class="flex justify-between items-center border-b pb-3 shrink-0 no-print">
+<h2 class="text-sm font-bold text-slate-800"><i class="fa-solid fa-print mr-2 text-emerald-600"></i>ພິມ / ເຊບຮູບເຄສ</h2>
+<div class="flex gap-2">
+<button type="button" onclick="window.saveCaseAsImage()" class="bg-slate-800 hover:bg-slate-900 text-white text-xs px-3.5 py-2 rounded-2xl font-bold cursor-pointer"><i class="fa-solid fa-image mr-1"></i> ເຊບເປັນຮູບ</button>
+<button type="button" onclick="window.print()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs px-3.5 py-2 rounded-2xl font-bold cursor-pointer"><i class="fa-solid fa-print mr-1"></i> ສັ່ງພິມ</button>
+<button type="button" onclick="window.closeCasePrintModal()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs px-3 py-2 rounded-2xl cursor-pointer"><i class="fa-solid fa-xmark"></i></button>
+</div>
+</div>
+<div class="flex-1 overflow-y-auto border rounded-2xl p-4 bg-slate-100 flex justify-center">
+<div id="casePrintArea" class="bg-white w-full max-w-[180mm] p-6 shadow-xl text-xs sm:text-sm text-slate-800 space-y-4 relative mx-auto rounded-2xl border pdf-page-container"></div>
+</div>
+</div>
+</div>
+
+<div id="printModal" class="fixed inset-0 bg-black/60 z-50 hidden flex items-center justify-center p-2">
+<div class="bg-white w-full max-w-5xl rounded-3xl p-5 shadow-2xl max-h-[90vh] flex flex-col space-y-3.5 border border-slate-100">
+<div class="flex justify-between items-center border-b pb-3 shrink-0">
+<h2 class="text-sm font-bold text-slate-800"><i class="fa-solid fa-print mr-2 text-blue-600"></i>ພິມ ແລະ ລາຍງານສະຫຼຸບ</h2>
+<div class="flex gap-2">
+<button type="button" onclick="window.triggerPDFDownload()" class="bg-amber-600 hover:bg-amber-700 text-white text-xs px-4 py-2 rounded-2xl font-bold cursor-pointer"><i class="fa-solid fa-file-pdf mr-1.5"></i> ດາວໂຫຼດ PDF</button>
+<button type="button" onclick="window.triggerActualPrint()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs px-4 py-2 rounded-2xl font-bold cursor-pointer"><i class="fa-solid fa-print mr-1.5"></i> ສັ່ງພິມ</button>
+<button type="button" onclick="window.closePrintModal()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs px-3 py-2 rounded-2xl cursor-pointer"><i class="fa-solid fa-xmark"></i></button>
+</div>
+</div>
+<div class="flex-1 overflow-y-auto border rounded-2xl p-3 bg-white flex justify-center">
+<div style="width: 100%; overflow-x: auto;">
+<div id="printPreviewContent" class="space-y-3 text-slate-800 w-full bg-white p-4 mx-auto pdf-page-container" style="min-width: 950px;"></div>
+</div>
+</div>
+</div>
+</div>
+
+<div id="backupModal" class="fixed inset-0 bg-black/60 z-50 hidden flex items-center justify-center p-3">
+<div class="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl space-y-4 border border-slate-100">
+<div class="flex justify-between items-center border-b pb-3">
+<h2 class="text-sm font-bold text-slate-800"><i class="fa-solid fa-database mr-2 text-blue-600"></i>ສຳຮອງ ແລະ ກູ້ຄືນຂໍ້ມູນ</h2>
+<button type="button" onclick="window.closeBackupModal()" class="text-slate-400 hover:text-slate-600 cursor-pointer"><i class="fa-solid fa-xmark text-lg"></i></button>
+</div>
+<div class="space-y-3.5 text-xs">
+<div class="bg-slate-50 p-4 rounded-2xl space-y-2.5 border border-slate-200">
+<p class="font-bold text-slate-700">ດາວໂຫຼດໄຟລ໌ສຳຮອງ (Backup JSON)</p>
+<button type="button" onclick="window.exportBackupJSON()" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded-2xl font-bold shadow-md">ດາວໂຫຼດຂໍ້ມູນທັງໝົດ</button>
+</div>
+<div class="bg-slate-50 p-4 rounded-2xl space-y-2.5 border border-slate-200">
+<p class="font-bold text-slate-700">ກູ້ຄືນຂໍ້ມູນ (Restore JSON)</p>
+<input type="file" id="restoreFile" accept=".json" class="w-full text-xs text-slate-500">
+<button type="button" onclick="window.importBackupJSON()" class="w-full bg-amber-600 hover:bg-amber-700 text-white py-2.5 rounded-2xl font-bold shadow-md">ອັບໂຫຼດ & ກູ້ຄືນ</button>
+</div>
+</div>
+</div>
+</div>
+
+<div id="recordModal" class="fixed inset-0 bg-black/60 z-50 hidden flex items-center justify-center p-2">
+<div class="bg-white w-full max-w-lg rounded-3xl p-5 sm:p-6 shadow-2xl max-h-[90vh] flex flex-col border border-slate-100">
+<div class="flex justify-between items-center mb-3.5 shrink-0 border-b pb-3">
+<h2 id="modalTitle" class="text-sm sm:text-base font-bold text-slate-800">ເພີ່ມຂໍ້ມູນການນຳສົ່ງ ແລະ ບັນຊີ</h2>
+<button type="button" onclick="window.closeModal()" class="text-slate-400 hover:text-slate-600 p-1.5 cursor-pointer"><i class="fa-solid fa-xmark text-lg"></i></button>
+</div>
+<div class="space-y-3 overflow-y-auto flex-1 pr-1">
+<input type="hidden" id="recordId">
+<div class="grid grid-cols-2 gap-3 items-end">
+<div>
+<label class="block text-xs font-bold text-slate-700 mb-1">ເລກລໍາດັບ (No.)</label>
+<input type="text" id="seqNo" placeholder="01, 02..." inputmode="numeric" class="w-full bg-slate-50 border border-slate-300 rounded-2xl px-3.5 py-2.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-blue-600 text-left">
+</div>
+<div>
+<label class="block text-xs font-bold text-slate-700 mb-1">ວັນທີ.ເດືອນ.ປີ</label>
+<input type="date" id="datetime" onchange="window.onDateChange()" class="w-full bg-slate-50 border border-slate-300 rounded-2xl px-3.5 py-2.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-blue-600 block text-left">
+</div>
+</div>
+
+<div class="grid grid-cols-2 gap-3 items-end">
+<div>
+<label class="block text-xs font-bold text-slate-700 mb-1">ປະເພດລາຍການ</label>
+<div class="flex gap-1.5">
+<select id="categoryType" onchange="window.checkCategoryOther()" class="w-full bg-slate-50 border border-slate-300 rounded-2xl px-3 py-2.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-blue-600 text-left">
+<option value="ຜູ້ປ່ວຍສຸກເສີນ">ຜູ້ປ່ວຍສຸກເສີນ</option>
+<option value="ຄົນເຈັບອຸບັດຕິເຫດ">ຄົນເຈັບອຸບັດຕິເຫດ</option>
+<option value="ເສຍຊີວິດ">ເສຍຊີວິດ</option>
+<option value="ອື່ນໆ">ອື່ນໆ</option>
+</select>
+</div>
+<input type="text" id="customCategory" placeholder="ພິມລະບຸ..." class="w-full hidden mt-2 bg-slate-100 border border-slate-300 rounded-2xl px-3.5 py-2.5 text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-600 text-left">
+</div>
+<div>
+<label class="block text-xs font-bold text-slate-700 mb-1">ຊື່ເຄສ</label>
+<input type="text" id="patientName" placeholder="ຊື່ເຄສ..." class="w-full bg-slate-50 border border-slate-300 rounded-2xl px-3.5 py-2.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-blue-600 text-left">
+</div>
+</div>
+
+<div>
+<label class="block text-xs font-bold text-slate-700 mb-1">ຕົ້ນທາງ</label>
+<input type="text" id="pickupLocation" placeholder="ໂຮງຫມໍຫຼືສະຖານທີ່ຮັບ..." class="w-full bg-slate-50 border border-slate-300 rounded-2xl px-3.5 py-2.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-blue-600 text-left">
+</div>
+<div>
+<label class="block text-xs font-bold text-slate-700 mb-1">ປາຍທາງ</label>
+<input type="text" id="dropoffLocation" placeholder="ໂຮງຫມໍຫຼືສະຖານທີ່ສົ່ງ..." class="w-full bg-slate-50 border border-slate-300 rounded-2xl px-3.5 py-2.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-blue-600 text-left">
+</div>
+
+<div>
+<label class="block text-xs font-bold text-emerald-700 mb-1">ລາຍຮັບ</label>
+<div class="grid grid-cols-12 gap-2">
+<input type="text" id="incomeAmount" placeholder="0" inputmode="numeric" oninput="window.formatMoneyInput(this)" class="col-span-8 bg-emerald-50/70 border border-emerald-300 rounded-2xl px-3.5 py-2.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500 text-left">
+<select id="incomeCurrency" class="col-span-4 bg-emerald-100 border border-emerald-300 rounded-2xl px-2.5 py-2.5 text-xs font-bold text-emerald-900 focus:outline-none">
+<option value="LAK">₭ (LAK)</option>
+<option value="THB">฿ (THB)</option>
+<option value="USD">$ (USD)</option>
+</select>
+</div>
+</div>
+
+<div class="grid grid-cols-2 gap-3 pt-1">
+<div>
+<label class="block text-xs font-bold text-rose-700 mb-1">ຄ່ານ້ຳມັນ</label>
+<div class="grid grid-cols-12 gap-1.5">
+<input type="text" id="fuelAmount" placeholder="0" inputmode="numeric" oninput="window.formatMoneyInput(this)" class="col-span-7 bg-rose-50/70 border border-rose-300 rounded-2xl px-2.5 py-2.5 text-xs font-bold focus:outline-none text-left">
+<select id="fuelCurrency" class="col-span-5 bg-rose-100 border border-rose-300 rounded-2xl px-1.5 py-2.5 text-[11px] font-bold text-rose-900 focus:outline-none">
+<option value="LAK">₭ (LAK)</option>
+<option value="THB">฿ (THB)</option>
+<option value="USD">$ (USD)</option>
+</select>
+</div>
+</div>
+<div>
+<label class="block text-xs font-bold text-amber-700 mb-1">ຄ່າກິນ/ອາຫານ</label>
+<div class="grid grid-cols-12 gap-1.5">
+<input type="text" id="foodAmount" placeholder="0" inputmode="numeric" oninput="window.formatMoneyInput(this)" class="col-span-7 bg-amber-50/70 border border-amber-300 rounded-2xl px-2.5 py-2.5 text-xs font-bold focus:outline-none text-left">
+<select id="foodCurrency" class="col-span-5 bg-amber-100 border border-amber-300 rounded-2xl px-1.5 py-2.5 text-[11px] font-bold text-amber-900 focus:outline-none">
+<option value="LAK">₭ (LAK)</option>
+<option value="THB">฿ (THB)</option>
+<option value="USD">$ (USD)</option>
+</select>
+</div>
+</div>
+</div>
+
+<div class="border-t border-slate-100 pt-3 bg-slate-50/80 p-3 rounded-2xl space-y-2">
+<div class="flex justify-between items-center">
+<label class="block text-xs font-bold text-slate-700">ຄ່າໃຊ້ຈ່າຍອື່ນໆ ເພີ່ມເຕີມ</label>
+<button type="button" onclick="window.addCustomExpenseRow()" class="bg-slate-800 hover:bg-slate-900 text-white text-[11px] font-bold px-3 py-1.5 rounded-xl transition cursor-pointer shadow-sm">
+<i class="fa-solid fa-plus mr-1"></i> ເພີ່ມລາຍການ
+</button>
+</div>
+<div id="customExpenseRowsContainer" class="space-y-2"></div>
+</div>
+<div class="border-t border-slate-100 pt-3 bg-slate-50/80 p-3 rounded-2xl space-y-2">
+<div class="flex justify-between items-center">
+<label class="block text-xs font-bold text-slate-700">ຂໍ້ມູນການເບີກເງິນ (ຄົນໄປນຳ)</label>
+<button type="button" onclick="window.addWithdrawRow()" class="bg-slate-800 hover:bg-slate-900 text-white text-[11px] font-bold px-3 py-1.5 rounded-xl transition cursor-pointer shadow-sm">
+<i class="fa-solid fa-plus mr-1"></i> ເພີ່ມຄົນເບີກ
+</button>
+</div>
+<div id="withdrawRowsContainer" class="space-y-2"></div>
+</div>
+<div class="border-t border-slate-100 pt-2.5">
+<label class="block text-xs font-bold text-slate-700 mb-1">ໝາຍເຫດເພີ່ມເຕີມ</label>
+<textarea id="note" rows="2" placeholder="ລາຍລະອຽດເພີ່ມເຕີມ..." class="w-full bg-slate-50 border border-slate-300 rounded-2xl px-3.5 py-2.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-blue-600 text-left"></textarea>
+</div>
+<div class="pt-2 shrink-0">
+<button type="button" onclick="window.handleSubmit()" id="submitBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 rounded-2xl shadow-lg shadow-blue-600/30 transition cursor-pointer text-sm">ບັນທຶກຂໍ້ມູນ</button>
+</div>
+</div>
+</div>
+</div>
+
+<div id="confirmModal" class="fixed inset-0 bg-black/60 z-[99999] hidden flex items-center justify-center p-3">
+<div class="bg-white rounded-3xl p-6 max-w-xs w-full text-center shadow-2xl space-y-3 border border-slate-100">
+<div class="text-rose-500 text-3xl"><i class="fa-solid fa-triangle-exclamation"></i></div>
+<p class="text-sm font-bold text-slate-800">ຢືນຢັນການລຶບ</p>
+<p class="text-xs text-slate-500 mb-2 font-medium">ທ່ານຕ້ອງການລຶບລາຍການນີ້ແທ້ບໍ?</p>
+<div class="flex gap-2.5">
+<button type="button" onclick="window.closeConfirmModal()" class="w-1/2 bg-slate-200 hover:bg-slate-300 text-slate-700 py-2.5 rounded-2xl text-xs font-bold cursor-pointer">ຍົກເລີກ</button>
+<button type="button" id="confirmDeleteBtn" class="w-1/2 bg-rose-600 hover:bg-rose-700 text-white py-2.5 rounded-2xl text-xs font-bold cursor-pointer shadow-md">ລຶບ</button>
+</div>
+</div>
+</div>
+
+<div id="alertModal" class="fixed inset-0 bg-black/60 z-[99999] hidden flex items-center justify-center p-3">
+<div class="bg-white rounded-3xl p-6 max-w-xs w-full text-center shadow-2xl space-y-3 border border-slate-100">
+<div id="alertIconContainer" class="text-3xl text-emerald-500"><i id="alertIcon" class="fa-solid fa-circle-check"></i></div>
+<p id="alertMessage" class="text-xs sm:text-sm font-bold text-slate-700 mb-3">ບັນທຶກຂໍ້ມູນຮຽບຮ້ອຍແລ້ວ</p>
+<button type="button" onclick="window.closeAlert()" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-2xl text-xs font-bold cursor-pointer shadow-md">ຕົກລົງ</button>
+</div>
+</div>
+
+<div id="chartModal" class="fixed inset-0 bg-black/60 z-50 hidden flex items-center justify-center p-3">
+<div class="bg-white w-full max-w-lg rounded-3xl p-6 shadow-2xl max-h-[90vh] flex flex-col space-y-3.5 border border-slate-100">
+<div class="flex justify-between items-center border-b pb-3">
+<h3 class="text-sm font-bold text-slate-800"><i class="fa-solid fa-chart-pie mr-2 text-blue-600"></i>ກຣາຟສະຖິຕິລາຍຈ່າຍ</h3>
+<button type="button" onclick="window.closeChartModal()" class="text-slate-400 hover:text-slate-600 cursor-pointer"><i class="fa-solid fa-xmark text-lg"></i></button>
+</div>
+<div class="relative w-full h-72 flex justify-center items-center">
+<canvas id="statsChart"></canvas>
+</div>
+</div>
+</div>
+
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+import { getFirestore, collection, onSnapshot, doc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+window.addEventListener('error', function(event) {
+const errScr = document.getElementById('errorScreen');
+const errMsg = document.getElementById('errorMsgText');
+if (errScr && errMsg) {
+errMsg.innerText = event.message + ' (Line: ' + event.lineno + ')';
+errScr.classList.remove('hidden');
+}
+});
+
+const firebaseConfig = {
+apiKey: "AIzaSyC0aX25cNVZaNpWPX0h-V7n09cW_8h4h8",
+authDomain: "ambulance-db-new.firebaseapp.com",
+projectId: "ambulance-db-new",
+storageBucket: "ambulance-db-new.firebasestorage.app",
+messagingSenderId: "370660196162",
+appId: "1:370660196162:web:3aefbc3132e185e4922b07"
+};
+
+let app, auth, db;
+try {
+app = initializeApp(firebaseConfig);
+auth = getAuth(app);
+db = getFirestore(app);
+} catch (e) {
+document.getElementById('errorMsgText').innerText = "Firebase Init Error: " + e.message;
+document.getElementById('errorScreen').classList.remove('hidden');
+}
+
+const appId = 'ole-oxigen-cloud-v1';
+let records = [];
+let allUsers = [];
+let user = null;
+let pendingDeleteId = null;
+let myChart = null;
+let alertCallback = null;
+let isInitialMonthSet = false;
+
+let exchangeRates = { THB: 650, USD: 22500, LAK: 1 };
+function loadExchangeRates() {
+try {
+const saved = localStorage.getItem('ole_exchange_rates');
+if (saved) exchangeRates = JSON.parse(saved);
+} catch(e) {}
+}
+loadExchangeRates();
+
+function convertToLAK(amount, currency) {
+if (!amount || isNaN(amount)) return 0;
+const rate = exchangeRates[currency] || 1;
+return Math.round(amount * rate);
+}
+
+function convertFromLAK(lakAmount, targetCurrency) {
+if (!lakAmount || isNaN(lakAmount)) return 0;
+const rate = exchangeRates[targetCurrency] || 1;
+return lakAmount / rate;
+}
+
+function toggleBodyScrollLock(lock) {
+document.body.style.overflow = lock ? 'hidden' : '';
+}
+
+window.closeModal = function() { document.getElementById('recordModal')?.classList.add('hidden'); toggleBodyScrollLock(false); };
+window.closeConfirmModal = function() { document.getElementById('confirmModal')?.classList.add('hidden'); pendingDeleteId = null; toggleBodyScrollLock(false); };
+window.closeUsersModal = function() { document.getElementById('usersModal')?.classList.add('hidden'); toggleBodyScrollLock(false); };
+
+window.openUsersModal = function() {
+const modal = document.getElementById('usersModal');
+if (modal) {
+modal.classList.remove('hidden');
+toggleBodyScrollLock(true);
+window.renderUsersTable();
+}
+};
+
+window.closeRateModal = function() { document.getElementById('rateModal')?.classList.add('hidden'); toggleBodyScrollLock(false); };
+window.openRateModal = function() {
+const modal = document.getElementById('rateModal');
+if (modal) {
+document.getElementById('rateTHB').value = exchangeRates.THB.toLocaleString();
+document.getElementById('rateUSD').value = exchangeRates.USD.toLocaleString();
+modal.classList.remove('hidden');
+toggleBodyScrollLock(true);
+}
+};
+
+window.saveExchangeRates = function() {
+const thb = parseMoney(document.getElementById('rateTHB').value);
+const usd = parseMoney(document.getElementById('rateUSD').value);
+if (thb <= 0 || usd <= 0) { showAlert('ກະລຸນາປ້ອນອັດຕາແລກປ່ຽນໃຫ້ຖືກຕ້ອງ', null, 'error'); return; }
+exchangeRates.THB = thb; exchangeRates.USD = usd;
+localStorage.setItem('ole_exchange_rates', JSON.stringify(exchangeRates));
+window.closeRateModal();
+showAlert('ບັນທຶກເລດອັດຕາແລກປ່ຽນຮຽບຮ້ອຍແລ້ວ', null, 'success');
+window.filterRecords();
+};
+
+window.openProfileModal = function() {
+let savedUser = {};
+try { savedUser = JSON.parse(localStorage.getItem('auth_user') || sessionStorage.getItem('auth_user') || '{}'); } catch(e) {}
+document.getElementById('profileFullName').innerText = savedUser.name || savedUser.username || 'User';
+document.getElementById('profileRoleText').innerText = savedUser.role === 'admin' ? 'ຜູ້ດູແລລະບົບ (Admin)' : 'ພະນັກງານ (Staff)';
+document.getElementById('profileUsername').innerText = savedUser.username || '-';
+document.getElementById('profilePhone').innerText = savedUser.phone || '-';
+document.getElementById('profileModal')?.classList.remove('hidden');
+toggleBodyScrollLock(true);
+};
+
+window.closeProfileModal = function() { document.getElementById('profileModal')?.classList.add('hidden'); toggleBodyScrollLock(false); };
+window.closePrintModal = function() { document.getElementById('printModal')?.classList.add('hidden'); toggleBodyScrollLock(false); };
+window.closeChartModal = function() { document.getElementById('chartModal')?.classList.add('hidden'); toggleBodyScrollLock(false); };
+window.closeBackupModal = function() { document.getElementById('backupModal')?.classList.add('hidden'); toggleBodyScrollLock(false); };
+window.closeCasePrintModal = function() { document.getElementById('casePrintModal')?.classList.add('hidden'); toggleBodyScrollLock(false); };
+window.closeAlert = function() {
+document.getElementById('alertModal')?.classList.add('hidden');
+toggleBodyScrollLock(false);
+if (typeof alertCallback === 'function') { const cb = alertCallback; alertCallback = null; cb(); }
+};
+window.closeSummaryPreviewModal = function() { document.getElementById('summaryPreviewModal')?.classList.add('hidden'); toggleBodyScrollLock(false); };
+
+window.toggleSummaryMenu = function(event) {
+event.stopPropagation();
+document.getElementById('summaryMenuDropdown')?.classList.toggle('hidden');
+};
+window.addEventListener('click', () => document.getElementById('summaryMenuDropdown')?.classList.add('hidden'));
+
+window.openEditMasterModal = function() {
+document.getElementById('usersModal')?.classList.add('hidden');
+let masterAdmin = JSON.parse(localStorage.getItem('master_admin_account') || JSON.stringify({ name: 'Admin', phone: '-', username: 'admin', pass: '1234', role: 'admin' }));
+document.getElementById('editMasterName').value = masterAdmin.name || 'Admin';
+document.getElementById('editMasterPhone').value = masterAdmin.phone || '';
+document.getElementById('editMasterUsername').value = masterAdmin.username || 'admin';
+document.getElementById('editMasterPassword').value = masterAdmin.pass || '1234';
+document.getElementById('editMasterModal')?.classList.remove('hidden');
+toggleBodyScrollLock(true);
+};
+
+window.closeEditMasterModal = function() {
+document.getElementById('editMasterModal')?.classList.add('hidden');
+toggleBodyScrollLock(false);
+};
+
+window.saveMasterAdminChanges = function() {
+const name = document.getElementById('editMasterName').value.trim();
+const phone = document.getElementById('editMasterPhone').value.trim();
+const username = document.getElementById('editMasterUsername').value.trim();
+const pass = document.getElementById('editMasterPassword').value.trim();
+if (!name || !username || !pass) { showAlert('ກະລຸນາປ້ອນຂໍ້ມູນໃຫ້ຄົບຖ้วน', null, 'error'); return; }
+let masterAdmin = { name, phone, username, pass, role: 'admin', status: 'approved' };
+localStorage.setItem('master_admin_account', JSON.stringify(masterAdmin));
+let savedUser = {};
+try { savedUser = JSON.parse(localStorage.getItem('auth_user') || '{}'); } catch(e){}
+if (savedUser.username === 'admin' || savedUser.role === 'admin') {
+localStorage.setItem('auth_user', JSON.stringify({ name, username, phone, role: 'admin', staffPermission: 'edit' }));
+document.getElementById('currentUserName').innerText = name;
+}
+window.closeEditMasterModal();
+showAlert('ບັນທຶກຂໍ້ມູນ Master Admin ສຳເລັດແລ້ວ', null, 'success');
+window.renderUsersTable();
+};
+
+window.exportSummaryAction = function(actionType) {
+document.getElementById('summaryMenuDropdown')?.classList.add('hidden');
+const monthLabelText = document.getElementById('summaryMonthLabel').innerText;
+const totalCasesText = document.getElementById('summaryTotalCasesLabel').innerText;
+const tbodyHTML = document.getElementById('dashboardSummaryTbody').innerHTML;
+
+if (actionType === 'print') {
+let printContainer = document.getElementById('summaryExportHiddenArea');
+if (!printContainer) { printContainer = document.createElement('div'); printContainer.id = 'summaryExportHiddenArea'; document.body.appendChild(printContainer); }
+printContainer.innerHTML = `<div style="font-family: 'Phetsarath', sans-serif; padding: 20px; background: white; max-width: 170mm; margin: 0 auto; display: flex; flex-direction: column; align-items: center;" class="pdf-page-container"><div style="text-align: center; margin-bottom: 16px; border-bottom: 3px solid #2563eb; padding-bottom: 12px; width: 100%;"><h2 style="font-size: 18px; font-weight: bold; color: #1e293b; margin: 0;">ໂອເລ້ ອົກຊີ້ເຢັນ - ລາຍງານສະຫຼຸບຍອດລວມ</h2><p style="font-size: 13px; font-weight: bold; color: #64748b; margin: 4px 0 0 0;">ປະຈຳ ${monthLabelText} | ${totalCasesText}</p></div><table style="width: 100%; border-collapse: collapse; font-size: 13px; margin: 0 auto;"><thead><tr style="background-color: #2563eb; color: white; font-weight: bold;"><th style="padding: 10px 12px; text-align: left; border: 1px solid #1d4ed8; width: 50%;">ລາຍການຫຼັກ / ຄ່າໃຊ້ຈ່າຍ</th><th style="padding: 10px 12px; text-align: right; border: 1px solid #1d4ed8; width: 50%;">ຈຳນວນເງິນລວມ</th></tr></thead><tbody>${tbodyHTML}</tbody></table></div>`;
+window.print();
+return;
+}
+if (actionType === 'pdf') {
+const previewArea = document.getElementById('summaryPreviewPrintArea');
+if (previewArea) {
+previewArea.innerHTML = `<div style="text-align: center; margin-bottom: 16px; border-bottom: 3px solid #2563eb; padding-bottom: 12px; width: 100%;"><h2 style="font-size: 16px; font-weight: bold; color: #1e293b; margin: 0;">ໂອເລ້ ອົກຊີ້ເຢັນ - ລາຍງານສະຫຼຸບຍອດລວມ</h2><p style="font-size: 12px; font-weight: bold; color: #64748b; margin: 4px 0 0 0;">ປະຈຳ ${monthLabelText} | ${totalCasesText}</p></div><table style="width: 100%; border-collapse: collapse; font-size: 12px; margin: 0 auto;"><thead><tr style="background-color: #2563eb; color: white; font-weight: bold;"><th style="padding: 8px 10px; text-align: left; border: 1px solid #1d4ed8; width: 50%;">ລາຍການຫຼັກ / ຄ່າໃຊ້ຈ່າຍ</th><th style="padding: 8px 10px; text-align: right; border: 1px solid #1d4ed8; width: 50%;">ຈຳນວນເງິນລວມ</th></tr></thead><tbody>${tbodyHTML}</tbody></table>`;
+}
+document.getElementById('summaryPreviewModal')?.classList.remove('hidden');
+toggleBodyScrollLock(true);
+return;
+}
+if (actionType === 'image') {
+let printContainer = document.getElementById('summaryExportHiddenArea');
+if (!printContainer) { printContainer = document.createElement('div'); printContainer.id = 'summaryExportHiddenArea'; document.body.appendChild(printContainer); }
+printContainer.style.cssText = "position:fixed; left:-9999px; top:0; z-index:999999; width:650px; background:#ffffff; padding:24px; font-family:Phetsarath, sans-serif; border-radius:24px;";
+printContainer.innerHTML = `<div style="text-align: center; margin-bottom: 16px; border-bottom: 3px solid #2563eb; padding-bottom: 12px;"><h2 style="font-size: 18px; font-weight: bold; color: #1e293b; margin: 0;">ໂອເລ້ ອົກຊີ້ເຢັນ - ລາຍງານສະຫຼຸບຍອດລວມ</h2><p style="font-size: 13px; font-weight: bold; color: #64748b; margin: 4px 0 0 0;">ປະຈຳ ${monthLabelText} | ${totalCasesText}</p></div><table style="width: 100%; border-collapse: collapse; font-size: 13px; margin: 0 auto;"><thead><tr style="background-color: #2563eb; color: white; font-weight: bold;"><th style="padding: 10px 12px; text-align: left; border: 1px solid #1d4ed8; width: 50%;">ລາຍການຫຼັກ / ຄ່າໃຊ້ຈ່າຍ</th><th style="padding: 10px 12px; text-align: right; border: 1px solid #1d4ed8; width: 50%;">ຈຳນວນເງິນລວມ</th></tr></thead><tbody>${tbodyHTML}</tbody></table>`;
+setTimeout(() => {
+html2canvas(printContainer, { scale: 2, useCORS: true }).then(canvas => {
+const link = document.createElement('a');
+link.download = 'ole_summary_' + new Date().toISOString().slice(0, 10) + '.png';
+link.href = canvas.toDataURL('image/png');
+link.click();
+showAlert('ບັນທຶກຕາຕະລາງສະຫຼຸບສຳເລັດແລ້ວ!', null, 'success');
+});
+}, 300);
+}
+};
+
+window.downloadSummaryPDFDirect = function() {
+const element = document.getElementById('summaryPreviewPrintArea');
+if (!element) return;
+html2pdf().from(element).set({
+margin: [15, 15, 15, 15],
+filename: 'ole_summary_report_' + new Date().toISOString().slice(0, 10) + '.pdf',
+image: { type: 'jpeg', quality: 0.98 },
+html2canvas: { scale: 2, useCORS: true },
+jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+}).save().then(() => {
+showAlert('ດາວໂຫຼດ PDF ຕາຕະລາງສະຫຼຸບສຳເລັດແລ້ວ!', null, 'success');
+window.closeSummaryPreviewModal();
+});
+};
+
+function getLockedMonths() {
+try { return JSON.parse(localStorage.getItem('ole_locked_months') || '{}'); } catch(e) { return {}; }
+}
+
+window.toggleMonthLock = function(ym) {
+let savedUser = {};
+try { savedUser = JSON.parse(localStorage.getItem('auth_user') || sessionStorage.getItem('auth_user') || '{}'); } catch(e){}
+if (savedUser.role !== 'admin') { showAlert('ສະຫງວນສິດສະເພາະ Admin ເທົ່ານັ້ນ', null, 'error'); return; }
+let locked = getLockedMonths();
+if (locked[ym]) { delete locked[ym]; showAlert(`ປົດລ໋ອກເດືອນ ${ym} ຮຽບຮ້ອຍແລ້ວ`, null, 'success'); }
+else { locked[ym] = true; showAlert(`ລ໋ອກເດືອນ ${ym} ຮຽບຮ້ອຍແລ້ວ`, null, 'success'); }
+localStorage.setItem('ole_locked_months', JSON.stringify(locked));
+window.filterRecords();
+};
+
+async function initAuth() {
+try { await signInAnonymously(auth); } catch(err) {}
+}
+initAuth();
+
+onAuthStateChanged(auth, (u) => {
+user = u;
+if (user) {
+document.getElementById('connectionStatus').innerHTML = '<i class="fa-solid fa-cloud mr-1.5"></i>ເຊື່ອມຕໍ່ລະບົບຄລາວ Realtime ສຳເລັດ';
+setupCloudListeners();
+}
+});
+
+function setupCloudListeners() {
+if (!user) return;
+onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'ambulance_records'), (snapshot) => {
+records = [];
+snapshot.forEach(docSnap => records.push({ id: docSnap.id, ...docSnap.data() }));
+records.sort((a, b) => {
+const dateA = new Date(a.datetime || '1970-01-01');
+const dateB = new Date(b.datetime || '1970-01-01');
+if (dateA - dateB !== 0) return dateA - dateB;
+return (parseInt(a.seqNo) || 0) - (parseInt(b.seqNo) || 0);
+});
+updateMonthDropdown();
+filterRecords();
+});
+
+onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'system_users'), (snapshot) => {
+allUsers = [];
+snapshot.forEach(docSnap => allUsers.push({ id: docSnap.id, ...docSnap.data() }));
+if (typeof window.renderUsersTable === 'function') window.renderUsersTable();
+});
+}
+
+window.onload = function() {
+setDefaultDate();
+checkSavedLogin();
+const tableBody = document.getElementById('recordTableBody');
+if (tableBody) {
+tableBody.addEventListener('click', function(e) {
+const btn = e.target.closest('.delete-btn');
+if (!btn) return;
+pendingDeleteId = btn.getAttribute('data-id');
+document.getElementById('confirmModal')?.classList.remove('hidden');
+toggleBodyScrollLock(true);
+});
+}
+document.getElementById('confirmDeleteBtn')?.addEventListener('click', async function() {
+if (!pendingDeleteId || !user) return;
+const idToDel = pendingDeleteId;
+window.closeConfirmModal();
+try {
+await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'ambulance_records', idToDel));
+showAlert('ລຶບຂໍ້ມູນສຳເລັດແລ້ວ', null, 'success');
+} catch(err) { showAlert('ເກີດຂໍ້ຜິດພາດໃນການລຶບ', null, 'error'); }
+});
+};
+
+window.openCasePrintModal = function(id) {
+const r = records.find(x => x.id === id);
+if (!r) return;
+const incAmt = r.incomeAmount || 0, incCurr = r.incomeCurrency || 'LAK';
+const fuelAmt = r.fuelAmount || 0, fuelCurr = r.fuelCurrency || 'LAK';
+const foodAmt = r.foodAmount || 0, foodCurr = r.foodCurrency || 'LAK';
+
+let withdrawDetails = '-', totalW = 0;
+if (r.withdrawers && Array.isArray(r.withdrawers) && r.withdrawers.length > 0) {
+withdrawDetails = r.withdrawers.map(w => {
+totalW += convertToLAK(w.amount || 0, w.currency || 'LAK');
+return `<div class="font-bold text-purple-700">• ${w.name}: ${(w.amount||0).toLocaleString()} ${w.currency||'LAK'}</div>`;
+}).join('');
+} else if (r.withdrawAmount) {
+totalW += convertToLAK(r.withdrawAmount || 0, r.withdrawCurrency || 'LAK');
+withdrawDetails = `<div class="font-bold text-purple-700">• ${r.withdrawerName || 'ຜູ້ເບີກ'}: ${r.withdrawAmount.toLocaleString()} ${r.withdrawCurrency||'LAK'}</div>`;
+}
+
+let totalC = 0;
+if (r.customExpenses && Array.isArray(r.customExpenses)) {
+r.customExpenses.forEach(e => totalC += convertToLAK(e.amount || 0, e.currency || 'LAK'));
+}
+
+const incLAK = convertToLAK(incAmt, incCurr);
+const totalExpense = convertToLAK(fuelAmt, fuelCurr) + convertToLAK(foodAmt, foodCurr) + totalW + totalC;
+const netBalanceLAK = incLAK - totalExpense;
+
+let savedUser = {};
+try { savedUser = JSON.parse(localStorage.getItem('auth_user') || sessionStorage.getItem('auth_user') || '{}'); } catch(e){}
+const html = `<div class="text-center space-y-0.5 border-b pb-3"><h2 class="text-xl sm:text-2xl font-extrabold text-slate-800">ໂອເລ້ ອົກຊີ້ເຢັນ</h2><p class="text-[11px] font-bold text-slate-500">ໃບບິນສະຫຼຸບເຄສ</p></div><div class="grid grid-cols-2 gap-2 bg-slate-50 p-3 rounded-2xl text-xs"><div><span class="text-slate-400 font-bold">ລຳດັບ:</span> <span class="font-bold">${r.seqNo || '-'}</span></div><div><span class="text-slate-400 font-bold">ວັນທີ:</span> <span class="font-bold">${r.datetime ? formatDateToDisplay(r.datetime) : '-'}</span></div><div><span class="text-slate-400 font-bold">ປະເພດເຄສ:</span> <span class="font-bold text-slate-800">${r.categoryType || '-'}</span></div><div><span class="text-slate-400 font-bold">ຊື່ເຄສ:</span> <span class="font-bold text-slate-800">${r.patientName || '-'}</span></div></div><div class="space-y-1 text-xs bg-slate-50 p-3 rounded-2xl"><div><span class="text-slate-400 font-bold">ຕົ້ນທາງ:</span> <span class="font-bold">${r.pickupLocation || '-'}</span></div><div><span class="text-slate-400 font-bold">ປາຍທາງ:</span> <span class="font-bold">${r.dropoffLocation || '-'}</span></div></div><div class="space-y-2 text-xs border rounded-2xl p-3.5"><div class="flex justify-between font-bold text-emerald-700 border-b pb-1.5"><span>ລາຍຮັບ:</span> <span>${incAmt.toLocaleString()} ${incCurr}</span></div><div class="flex justify-between font-bold text-rose-700"><span>ຄ່ານ້ຳມັນ:</span> <span>${fuelAmt.toLocaleString()} ${fuelCurr}</span></div><div class="flex justify-between font-bold text-amber-700"><span>ຄ່າກິນ:</span> <span>${foodAmt.toLocaleString()} ${foodCurr}</span></div><div class="flex justify-between font-bold text-purple-700"><span>ເງິນເບີກ:</span> <div class="text-right">${withdrawDetails}</div></div><div class="flex justify-between items-center font-extrabold text-sm pt-1.5 bg-slate-100 px-2.5 py-2 rounded-xl ${netBalanceLAK >= 0 ? 'text-slate-900' : 'text-rose-600'}"><span>ຍອດເຫຼືອທັງໝົດ:</span> <span>${netBalanceLAK.toLocaleString()} ₭</span></div></div>${r.note ? `<div class="text-xs text-slate-600 bg-amber-50 p-3 rounded-2xl border border-amber-100"><span class="font-bold text-amber-800">ໝາຍເຫດ:</span> ${r.note}</div>`:''}<div class="text-right pt-6 text-xs text-slate-700 font-bold"><p>ຜູ້ບັນທຶກ: ${savedUser.name || savedUser.username || 'Admin'}</p></div>`;
+document.getElementById('casePrintArea').innerHTML = html;
+document.getElementById('casePrintModal')?.classList.remove('hidden');
+toggleBodyScrollLock(true);
+};
+
+window.deleteSystemUser = async function(username) {
+if (!username || !user) return;
+if (confirm('ທ່ານຕ້ອງການລຶບບັນຊີ [' + username + '] ແທ້ບໍ?')) {
+try {
+const targetUser = allUsers.find(u => u.username === username || u.id === username);
+if (targetUser) {
+await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'system_users', targetUser.id));
+showAlert('ລຶບສຳເລັດ', null, 'success'); window.renderUsersTable();
+}
+} catch(e) { showAlert('ເກີດຂໍ້ຜິດພາດ', null, 'error'); }
+}
+};
+
+window.toggleUserStatusLocal = async function(username, currentStatus) {
+if (!user) return;
+const newStatus = currentStatus === 'approved' ? 'pending' : 'approved';
+const targetUser = allUsers.find(u => u.username === username);
+if (targetUser) {
+await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'system_users', targetUser.id), { ...targetUser, status: newStatus }, { merge: true });
+window.renderUsersTable();
+showAlert('ອັບເດດສະຖານະສຳເລັດ', null, 'success');
+}
+};
+
+window.updateUserRolePermission = async function(username) {
+if (!user) return;
+const roleSelect = document.getElementById('role_' + username);
+const permSelect = document.getElementById('perm_' + username);
+if (!roleSelect || !permSelect) return;
+const targetUser = allUsers.find(u => u.username === username);
+if (targetUser) {
+await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'system_users', targetUser.id), { ...targetUser, role: roleSelect.value, staffPermission: permSelect.value }, { merge: true });
+showAlert('ອັບເດດສິດສຳເລັດ', null, 'success');
+window.renderUsersTable();
+}
+};
+
+window.togglePasswordVisibility = function(inputId, iconId) {
+const input = document.getElementById(inputId), icon = document.getElementById(iconId);
+if (input.type === 'password') { input.type = 'text'; icon.className = "fa-solid fa-eye-slash text-xs"; }
+else { input.type = 'password'; icon.className = "fa-solid fa-eye text-xs"; }
+};
+
+window.openPrintModal = function() {
+const selectedMonth = document.getElementById('monthFilter').value;
+let targetRecords = records;
+if (selectedMonth !== 'all' && !selectedMonth.startsWith('year_')) {
+targetRecords = records.filter(r => r.datetime && r.datetime.startsWith(selectedMonth));
+} else if (selectedMonth.startsWith('year_')) {
+targetRecords = records.filter(r => r.datetime && r.datetime.startsWith(selectedMonth.replace('year_', '')));
+}
+let totalIncLAK = 0, totalFuelLAK = 0, totalFoodLAK = 0, totalWithdrawLAK = 0, customExpMapReport = {};
+let rowsHtml = targetRecords.map((r, i) => {
+const incAmt = r.incomeAmount || 0, incCurr = r.incomeCurrency || 'LAK';
+const fuelAmt = r.fuelAmount || 0, fuelCurr = r.fuelCurrency || 'LAK';
+const foodAmt = r.foodAmount || 0, foodCurr = r.foodCurrency || 'LAK';
+const incLAK = convertToLAK(incAmt, incCurr);
+const fuelLAK = convertToLAK(fuelAmt, fuelCurr);
+const foodLAK = convertToLAK(foodAmt, foodCurr);
+
+let rowW = 0, withdrawText = '-';
+if (r.withdrawers && Array.isArray(r.withdrawers)) {
+withdrawText = r.withdrawers.map(w => {
+const wAmt = w.amount || 0, wCurr = w.currency || 'LAK', wLAK = convertToLAK(wAmt, wCurr);
+rowW += wLAK;
+return `<strong class="block">• ${w.name}: ${wAmt > 0 ? wAmt.toLocaleString() + ' ' + wCurr : '0'}</strong>${wCurr !== 'LAK' ? `<div class="text-[9px] text-slate-500">≈ ${wLAK.toLocaleString()} ₭</div>` : ''}`;
+}).join('');
+} else if (r.withdrawAmount) {
+const wAmt = r.withdrawAmount || 0, wCurr = r.withdrawCurrency || 'LAK', wLAK = convertToLAK(wAmt, wCurr);
+rowW += wLAK;
+withdrawText = `<strong class="block">• ${r.withdrawerName || 'ຜູ້ເບີກ'}: ${wAmt.toLocaleString()} ${wCurr}</strong>${wCurr !== 'LAK' ? `<div class="text-[9px] text-slate-500">≈ ${wLAK.toLocaleString()} ₭</div>` : ''}`;
+}
+
+let rowC = 0, customText = '-';
+if (r.customExpenses && Array.isArray(r.customExpenses)) {
+customText = r.customExpenses.map(e => {
+const eAmt = e.amount || 0, eCurr = e.currency || 'LAK', eLAK = convertToLAK(eAmt, eCurr);
+rowC += eLAK;
+const expName = e.name ? e.name.trim() : 'ອື່ນໆ';
+customExpMapReport[expName] = (customExpMapReport[expName] || 0) + eLAK;
+return `<strong class="block">• ${expName}: ${eAmt > 0 ? eAmt.toLocaleString() + ' ' + eCurr : '0'}</strong>${eCurr !== 'LAK' ? `<div class="text-[9px] text-slate-500">≈ ${eLAK.toLocaleString()} ₭</div>` : ''}`;
+}).join('');
+}
+
+totalIncLAK += incLAK; totalFuelLAK += fuelLAK; totalFoodLAK += foodLAK; totalWithdrawLAK += rowW;
+const caseNet = incLAK - (fuelLAK + foodLAK + rowW + rowC);
+return `<tr><td class="border p-1.5 text-center font-bold">${i + 1}</td><td class="border p-1.5 font-bold whitespace-nowrap">${r.categoryType || 'ທົ່ວໄປ'}</td><td class="border p-1.5 font-bold">${r.patientName || ''}</td><td class="border p-1.5 font-bold">${r.datetime ? formatDateToDisplay(r.datetime) : ''}</td><td class="border p-1.5 font-bold">ຕົ້ນທາງ: ${r.pickupLocation || '-'}<br>ປາຍທາງ: ${r.dropoffLocation || '-'}</td><td class="border p-1.5 text-right text-emerald-600 font-bold">${incAmt > 0 ? incAmt.toLocaleString() + ' ' + incCurr : '-'}${incCurr !== 'LAK' && incAmt > 0 ? `<div class="text-[9px] text-slate-500">≈ ${incLAK.toLocaleString()} ₭</div>` : ''}</td><td class="border p-1.5 text-right text-rose-600 font-bold">${fuelAmt > 0 ? fuelAmt.toLocaleString() + ' ' + fuelCurr : '-'}${fuelCurr !== 'LAK' && fuelAmt > 0 ? `<div class="text-[9px] text-slate-500">≈ ${fuelLAK.toLocaleString()} ₭</div>` : ''}</td><td class="border p-1.5 text-right text-amber-600 font-bold">${foodAmt > 0 ? foodAmt.toLocaleString() + ' ' + foodCurr : '-'}${foodCurr !== 'LAK' && foodAmt > 0 ? `<div class="text-[9px] text-slate-500">≈ ${foodLAK.toLocaleString()} ₭</div>` : ''}</td><td class="border p-1.5 text-right text-purple-600 font-bold">${withdrawText}</td><td class="border p-1.5 text-right text-teal-800 font-bold">${customText}</td><td class="border p-1.5 text-right font-black ${caseNet >= 0 ? 'text-slate-900' : 'text-rose-600'}">${caseNet.toLocaleString()} ₭</td><td class="border p-1.5 font-bold">${r.note || '-'}</td></tr>`;
+}).join('');
+
+let customSummaryRowsReportHtml = '', totalCustomReportAll = 0;
+Object.entries(customExpMapReport).forEach(([name, amt]) => {
+totalCustomReportAll += amt;
+customSummaryRowsReportHtml += `<tr><td colspan="10" class="border p-1.5 text-right font-bold text-teal-700">• ${name}:</td><td colspan="2" class="border p-1.5 text-right font-extrabold text-teal-800">${amt.toLocaleString()} ₭</td></tr>`;
+});
+const totalExpenseReport = totalFuelLAK + totalFoodLAK + totalWithdrawLAK + totalCustomReportAll;
+const netBalanceReport = totalIncLAK - totalExpenseReport;
+
+document.getElementById('printPreviewContent').innerHTML = `<div class="text-center space-y-1 mb-2"><h2 class="text-xs sm:text-sm font-extrabold text-slate-800">ໂອເລ້ ອົກຊີ້ເຢັນ - ລາຍງານສະຫຼຸບການນຳສົ່ງ ແລະ ບັນຊີ</h2><p class="text-[10px] text-slate-500 font-bold">ປະຈຳ: ${selectedMonth}</p></div><table class="w-full text-left text-[10px] divide-y divide-slate-200 border-collapse min-w-[950px]"><thead><tr class="bg-slate-100 font-bold"><th class="border p-1.5 text-center">ລຳດັບ</th><th class="border p-1.5">ປະເພດ</th><th class="border p-1.5">ຊື່ເຄສ</th><th class="border p-1.5">ວັນທີ</th><th class="border p-1.5 min-w-[180px]">ຕົ້ນທາງ - ປາຍທາງ</th><th class="border p-1.5 text-right">ລາຍຮັບ</th><th class="border p-1.5 text-right">ຄ່ານ້ຳມັນ</th><th class="border p-1.5 text-right">ຄ່າກິນ</th><th class="border p-1.5 text-right">ເງິນເບີກ</th><th class="border p-1.5 text-right">ຄ່າໃຊ້ຈ່າຍອື່ນໆ</th><th class="border p-1.5 text-right">ຍອດເຫຼືອ</th><th class="border p-1.5">ໝາຍເຫດ</th></tr></thead><tbody class="bg-white">${rowsHtml}</tbody><tfoot><tr><td colspan="10" class="border p-1.5 text-right font-bold text-emerald-700">ລາຍຮັບລວມ:</td><td colspan="2" class="border p-1.5 text-right font-extrabold text-emerald-700">${totalIncLAK.toLocaleString()} ₭</td></tr><tr><td colspan="10" class="border p-1.5 text-right font-bold text-rose-700">ຄ່ານ້ຳມັນລວມ:</td><td colspan="2" class="border p-1.5 text-right font-extrabold text-rose-700">${totalFuelLAK.toLocaleString()} ₭</td></tr><tr><td colspan="10" class="border p-1.5 text-right font-bold text-amber-700">ຄ່າກິນລວມ:</td><td colspan="2" class="border p-1.5 text-right font-extrabold text-amber-700">${totalFoodLAK.toLocaleString()} ₭</td></tr><tr><td colspan="10" class="border p-1.5 text-right font-bold text-purple-700">ເງິນເບີກລວມ:</td><td colspan="2" class="border p-1.5 text-right font-extrabold text-purple-700">${totalWithdrawLAK.toLocaleString()} ₭</td></tr>${customSummaryRowsReportHtml}<tr class="bg-slate-100 font-bold"><td colspan="10" class="border p-1.5 text-right font-extrabold">ຍອດເຫຼືອທັງໝົດ:</td><td colspan="2" class="border p-1.5 text-right font-extrabold ${netBalanceReport >= 0 ? 'text-slate-900' : 'text-rose-600'}">${netBalanceReport.toLocaleString()} ₭</td></tr></tfoot></table>`;
+document.getElementById('printModal')?.classList.remove('hidden');
+toggleBodyScrollLock(true);
+};
+
+window.triggerActualPrint = function() { window.print(); };
+window.triggerPDFDownload = function() {
+html2pdf().from(document.getElementById('printPreviewContent')).set({
+margin: [5, 5, 5, 5],
+filename: 'ole_ambulance_report_' + new Date().toISOString().slice(0, 10) + '.pdf',
+image: { type: 'jpeg', quality: 0.98 },
+html2canvas: { scale: 2, useCORS: true },
+jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
+}).save().then(() => showAlert('ດາວໂຫຼດ PDF ສຳເລັດ!', null, 'success'));
+};
+
+window.openChartModal = function() { document.getElementById('chartModal')?.classList.remove('hidden'); toggleBodyScrollLock(true); renderChart(); };
+window.openBackupModal = function() { document.getElementById('backupModal')?.classList.remove('hidden'); toggleBodyScrollLock(true); };
+
+function renderChart() {
+const ctx = document.getElementById('statsChart').getContext('2d');
+const selectedMonth = document.getElementById('monthFilter').value;
+let targetRecords = records;
+if (selectedMonth !== 'all' && !selectedMonth.startsWith('year_')) {
+targetRecords = records.filter(r => r.datetime && r.datetime.startsWith(selectedMonth));
+} else if (selectedMonth.startsWith('year_')) {
+targetRecords = records.filter(r => r.datetime && r.datetime.startsWith(selectedMonth.replace('year_', '')));
+}
+let fuelLAK = 0, foodLAK = 0, withdrawLAK = 0, customTotalLAK = 0, customExpMap = {};
+targetRecords.forEach(r => {
+fuelLAK += convertToLAK(r.fuelAmount || 0, r.fuelCurrency || 'LAK');
+foodLAK += convertToLAK(r.foodAmount || 0, r.foodCurrency || 'LAK');
+let rowW = 0;
+if (r.withdrawers && Array.isArray(r.withdrawers)) {
+r.withdrawers.forEach(w => rowW += convertToLAK(w.amount || 0, w.currency || 'LAK'));
+} else if (r.withdrawAmount) { rowW += convertToLAK(r.withdrawAmount || 0, r.withdrawCurrency || 'LAK'); }
+withdrawLAK += rowW;
+if (r.customExpenses && Array.isArray(r.customExpenses)) {
+r.customExpenses.forEach(e => {
+const expName = e.name ? e.name.trim() : 'ອື່ນໆ';
+const eLAK = convertToLAK(e.amount || 0, e.currency || 'LAK');
+customExpMap[expName] = (customExpMap[expName] || 0) + eLAK;
+customTotalLAK += eLAK;
+});
+}
+});
+const centerTotalValue = fuelLAK + foodLAK + withdrawLAK + customTotalLAK;
+let chartLabels = ['ຄ່ານ້ຳມັນ', 'ຄ່າກິນ', 'ເງິນເບີກ'], chartData = [fuelLAK, foodLAK, withdrawLAK];
+let chartColors = ['#ef4444', '#f59e0b', '#8b5cf6', '#10b981', '#3b82f6', '#ec4899', '#14b8a6', '#f97316', '#6366f1'];
+Object.entries(customExpMap).forEach(([name, amt]) => { chartLabels.push(name); chartData.push(amt); });
+if (myChart) myChart.destroy();
+myChart = new Chart(ctx, {
+type: 'doughnut',
+data: { labels: chartLabels, datasets: [{ data: chartData, backgroundColor: chartColors, borderWidth: 2 }] },
+options: {
+responsive: true, maintainAspectRatio: false, cutout: '75%',
+plugins: {
+legend: { position: 'left', labels: { font: { family: 'Phetsarath', size: 11 }, boxWidth: 12, padding: 12 } }
+}
+},
+plugins: [{
+id: 'centerText',
+beforeDraw(chart) {
+const { ctx, chartArea } = chart;
+if (!chartArea) return;
+const centerX = (chartArea.left + chartArea.right) / 2, centerY = (chartArea.top + chartArea.bottom) / 2;
+ctx.save(); ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+ctx.font = 'bold 15px Phetsarath'; ctx.fillStyle = '#1e293b';
+ctx.fillText(centerTotalValue > 0 ? centerTotalValue.toLocaleString() + ' ₭' : '0 ₭', centerX, centerY - 6);
+ctx.font = '11px Phetsarath'; ctx.fillStyle = '#64748b';
+ctx.fillText('ລາຍຈ່າຍລວມ', centerX, centerY + 14);
+ctx.restore();
+}
+}]
+});
+}
+
+window.exportBackupJSON = function() {
+try {
+const dataStr = JSON.stringify(records, null, 2);
+const blob = new Blob([dataStr], { type: 'application/json;charset=utf-8;' });
+const dl = document.createElement('a');
+dl.href = URL.createObjectURL(blob);
+dl.download = "ole_ambulance_backup_" + new Date().toISOString().slice(0, 10) + ".json";
+document.body.appendChild(dl); dl.click(); document.body.removeChild(dl);
+showAlert('ດາວໂຫຼດໄຟລ໌ສຳຮອງສຳເລັດ', null, 'success');
+} catch(e) { showAlert('ເກີດຂໍ້ຜິດພາດ', null, 'error'); }
+};
+
+window.importBackupJSON = function() {
+const fileInput = document.getElementById('restoreFile');
+if (!fileInput.files.length) { showAlert('ກະລຸນາເລືອກໄຟລ໌', null, 'error'); return; }
+const reader = new FileReader();
+reader.onload = function(e) {
+try {
+JSON.parse(e.target.result);
+window.closeBackupModal();
+showAlert('ກູ້ຄືນຂໍ້ມູນສຳເລັດ!', null, 'success');
+window.filterRecords();
+} catch(err) { showAlert('ໄຟລ໌ບໍ່ຖືກຕ້ອງ', null, 'error'); }
+};
+reader.readAsText(fileInput.files[0]);
+};
+
+window.exportToCSV = function() {
+try {
+const monthVal = document.getElementById('monthFilter').value;
+let targetRecords = records;
+if (monthVal !== 'all' && !monthVal.startsWith('year_')) {
+targetRecords = records.filter(r => r.datetime && r.datetime.startsWith(monthVal));
+} else if (monthVal.startsWith('year_')) {
+targetRecords = records.filter(r => r.datetime && r.datetime.startsWith(monthVal.replace('year_', '')));
+}
+if (targetRecords.length === 0) { showAlert('ບໍ່ມີຂໍ້ມູນໃນເດືອນນີ້!', null, 'error'); return; }
+let csv = "\uFEFFລຳດັບ,ປະເພດ,ຊື່ເຄສ,ວັນທີ,ຕົ້ນທາງ,ປາຍທາງ,ລາຍຮັບ,ຄ່ານ້ຳມັນ,ຄ່າກິນ,ເງິນເບີກ,ຄ່າໃຊ້ຈ່າຍອື່ນໆ,ຍອດເຫຼືອ,ໝາຍເຫດ\n";
+targetRecords.forEach((r, idx) => {
+const incAmt = r.incomeAmount || 0, incCurr = r.incomeCurrency || 'LAK';
+const fuelAmt = r.fuelAmount || 0, fuelCurr = r.fuelCurrency || 'LAK';
+const foodAmt = r.foodAmount || 0, foodCurr = r.foodCurrency || 'LAK';
+let wSum = 0;
+if (r.withdrawers && Array.isArray(r.withdrawers)) { r.withdrawers.forEach(w => wSum += convertToLAK(w.amount||0, w.currency||'LAK')); }
+else if (r.withdrawAmount) { wSum += convertToLAK(r.withdrawAmount||0, r.withdrawCurrency||'LAK'); }
+let cSum = 0;
+if (r.customExpenses && Array.isArray(r.customExpenses)) { r.customExpenses.forEach(e => cSum += convertToLAK(e.amount||0, e.currency||'LAK')); }
+const net = convertToLAK(incAmt, incCurr) - (convertToLAK(fuelAmt, fuelCurr) + convertToLAK(foodAmt, foodCurr) + wSum + cSum);
+csv += `"${idx + 1}","${r.categoryType}","${r.patientName}","${r.datetime ? formatDateToDisplay(r.datetime) : ''}","${r.pickupLocation}","${r.dropoffLocation}","${incAmt} ${incCurr}","${fuelAmt} ${fuelCurr}","${foodAmt} ${foodCurr}",${wSum},${cSum},${net},"${r.note || ''}"\n`;
+});
+const a = document.createElement('a');
+a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
+a.download = "ole_ambulance_report.csv";
+document.body.appendChild(a); a.click(); document.body.removeChild(a);
+showAlert('ດາວໂຫຼດ Excel ສຳເລັດແລ້ວ!', null, 'success');
+} catch(e) { showAlert('ເກີດຂໍ້ຜິດພາດ', null, 'error'); }
+};
+
+window.switchAuthMode = function(mode) {
+const loginForm = document.getElementById('loginFormContainer'), regForm = document.getElementById('registerFormContainer');
+if (mode === 'register') { loginForm.classList.add('hidden'); regForm.classList.remove('hidden'); document.getElementById('authTitle').innerText = 'ສະໝັກສະມາຊິກ'; }
+else { regForm.classList.add('hidden'); loginForm.classList.remove('hidden'); document.getElementById('authTitle').innerText = 'ເຂົ້າສູ່ລະບົບ'; }
+};
+
+window.handleRegister = async function() {
+const name = document.getElementById('regName').value.trim();
+const phone = document.getElementById('regPhone').value.trim();
+const username = document.getElementById('regUser').value.trim();
+const pass = document.getElementById('regPass').value.trim();
+if (!name || !phone || !username || !pass) { showAlert('ກະລຸນາປ້ອນຂໍ້ມູນໃຫ້ຄົບ', null, 'error'); return; }
+try {
+await setDoc(doc(collection(db, 'artifacts', appId, 'public', 'data', 'system_users')), {
+name, phone, username, pass, role: 'staff', staffPermission: 'edit', status: 'pending', createdAt: Date.now()
+});
+showAlert('ລົງທະບຽນສຳເລັດ! ລໍຖ້າ Admin ອະນຸມັດ', () => window.switchAuthMode('login'), 'success');
+} catch(e) { showAlert('ເກີດຂໍ້ຜິດພາດ', null, 'error'); }
+};
+
+window.handleLogin = function() {
+const u = document.getElementById('loginUser').value.trim(), p = document.getElementById('loginPass').value.trim();
+if (!u || !p) { showAlert('ກະລຸນາປ້ອນຂໍ້ມູນໃຫ້ຄົບ', null, 'error'); return; }
+let masterAdmin = JSON.parse(localStorage.getItem('master_admin_account') || JSON.stringify({ name: 'Admin', phone: '-', username: 'admin', pass: '1234', role: 'admin' }));
+if (u === masterAdmin.username && p === masterAdmin.pass) {
+const adminData = { name: masterAdmin.name || 'Admin', username: masterAdmin.username, phone: masterAdmin.phone || '-', role: 'admin', staffPermission: 'edit' };
+localStorage.setItem('auth_user', JSON.stringify(adminData));
+applyLoginState(adminData);
+return;
+}
+const found = allUsers.find(x => (x.username === u || x.phone === u) && x.pass === p);
+if (!found) { showAlert('ຊື່ຜູ້ໃຊ້ ຫຼື ລະຫັດຜ່ານບໍ່ຖືກຕ້ອງ', null, 'error'); return; }
+if (found.status !== 'approved') { showAlert('ບັນຊີຍັງບໍ່ໄດ້ຮັບການອະນຸມັດ', null, 'error'); return; }
+localStorage.setItem('auth_user', JSON.stringify(found));
+applyLoginState(found);
+};
+
+function checkSavedLogin() {
+let saved = null;
+try { saved = localStorage.getItem('auth_user') || sessionStorage.getItem('auth_user'); } catch(e){}
+if (saved) {
+try { applyLoginState(JSON.parse(saved)); } catch(e) { document.getElementById('loginOverlay')?.classList.remove('hidden'); }
+} else {
+document.getElementById('loginOverlay')?.classList.remove('hidden');
+}
+}
+
+function applyLoginState(userData) {
+document.getElementById('loginOverlay')?.classList.add('hidden');
+document.getElementById('userBadge')?.classList.remove('hidden');
+document.getElementById('currentUserName').innerText = userData.name || userData.username;
+if (userData.role === 'admin') {
+document.getElementById('adminUsersBtn')?.classList.remove('hidden');
+document.getElementById('currentUserRoleBadge').innerText = "ຜູ້ດູແລລະບົບ";
+} else {
+document.getElementById('adminUsersBtn')?.classList.add('hidden');
+document.getElementById('currentUserRoleBadge').innerText = "Staff";
+}
+window.filterRecords();
+}
+
+window.handleLogout = function() {
+localStorage.removeItem('auth_user');
+sessionStorage.removeItem('auth_user');
+showAlert('ອອກຈາກລະບົບຮຽບຮ້ອຍແລ້ວ', () => {
+document.getElementById('loginOverlay')?.classList.remove('hidden');
+window.location.reload();
+}, 'success');
+};
+
+window.renderUsersTable = function() {
+const tbody = document.getElementById('usersTableBody');
+if (!tbody) return;
+let masterAdmin = JSON.parse(localStorage.getItem('master_admin_account') || JSON.stringify({ name: 'Admin', phone: '-', username: 'admin', pass: '1234', role: 'admin', status: 'approved' }));
+let html = `<tr class="bg-slate-50/45"><td class="p-3 font-bold whitespace-nowrap">${masterAdmin.name} <span class="bg-blue-600 text-white px-2 py-0.5 rounded text-[10px]">Master</span></td><td class="p-3 whitespace-nowrap">${masterAdmin.phone || '-'}</td><td class="p-3 font-mono whitespace-nowrap">${masterAdmin.username}</td><td class="p-3 font-mono font-bold whitespace-nowrap">${masterAdmin.pass}</td><td class="p-3 whitespace-nowrap"><span class="bg-blue-50 text-blue-700 px-2.5 py-1 rounded-xl text-[11px] font-bold">Admin</span></td><td class="p-3 whitespace-nowrap">Full Access</td><td class="p-3 whitespace-nowrap"><span class="bg-emerald-100 text-emerald-700 px-2.5 py-1 rounded-xl text-[11px] font-bold">approved</span></td><td class="p-3 text-center whitespace-nowrap"><button type="button" onclick="window.openEditMasterModal()" class="bg-amber-600 hover:bg-amber-700 text-white px-3 py-1.5 rounded-xl text-[11px] font-bold shadow-sm"><i class="fa-solid fa-pen mr-1"></i> ແກ້ໄຂ</button></td></tr>`;
+allUsers.forEach(u => {
+const isApproved = u.status === 'approved';
+html += `<tr><td class="p-3 font-bold whitespace-nowrap">${u.name||'-'}</td><td class="p-3 whitespace-nowrap">${u.phone||'-'}</td><td class="p-3 font-mono whitespace-nowrap">${u.username||'-'}</td><td class="p-3 font-mono whitespace-nowrap">${u.pass||'-'}</td><td class="p-3 whitespace-nowrap"><select id="role_${u.username}" onchange="window.updateUserRolePermission('${u.username}')" class="bg-slate-50 border rounded-xl p-1 text-xs font-bold"><option value="staff" ${u.role==='staff'?'selected':''}>Staff</option><option value="admin" ${u.role==='admin'?'selected':''}>Admin</option></select></td><td class="p-3 whitespace-nowrap"><select id="perm_${u.username}" onchange="window.updateUserRolePermission('${u.username}')" class="bg-slate-50 border rounded-xl p-1 text-xs font-bold"><option value="edit" ${u.staffPermission!=='view'?'selected':''}>ເພີ່ມ/ແກ້ໄຂ</option><option value="view" ${u.staffPermission==='view'?'selected':''}>ເບິ່ງຢ່າງດຽວ</option></select></td><td class="p-3 whitespace-nowrap"><span class="px-2.5 py-1 rounded-xl text-[11px] font-bold ${isApproved?'bg-emerald-100 text-emerald-700':'bg-amber-100 text-amber-700'}">${u.status||'pending'}</span></td><td class="p-3 text-center flex items-center justify-center gap-2 whitespace-nowrap"><button type="button" onclick="window.toggleUserStatusLocal('${u.username}', '${u.status}')" class="px-3 py-1.5 rounded-xl text-[11px] font-bold text-white ${isApproved?'bg-amber-600':'bg-emerald-600'}">${isApproved?'ລະງັບ':'ອະນຸມັດ'}</button><button type="button" onclick="window.deleteSystemUser('${u.username}')" class="bg-rose-600 text-white px-3 py-1.5 rounded-xl text-[11px] font-bold"><i class="fa-solid fa-trash"></i></button></td></tr>`;
+});
+tbody.innerHTML = html;
+};
+
+function setDefaultDate() {
+const today = new Date().toISOString().slice(0, 10);
+if (document.getElementById('datetime')) document.getElementById('datetime').value = today;
+}
+window.onDateChange = function() {
+const dtEl = document.getElementById('datetime');
+if (!dtEl || !dtEl.value) return;
+const ym = dtEl.value.slice(0, 7);
+let maxSeq = 0;
+records.filter(r => r.datetime && r.datetime.startsWith(ym)).forEach(r => {
+const s = parseInt(r.seqNo) || 0;
+if (s > maxSeq) maxSeq = s;
+});
+const nextSeq = (maxSeq + 1).toString().padStart(2, '0');
+const seqEl = document.getElementById('seqNo');
+if (seqEl && !seqEl.dataset.manualEdited) seqEl.value = nextSeq;
+};
+
+window.formatMoneyInput = function(input) {
+let val = input.value.replace(/,/g, '').replace(/\D/g, '');
+input.value = val === '' ? '' : parseInt(val, 10).toLocaleString();
+};
+
+function parseMoney(str) {
+if (!str) return 0;
+return parseInt(str.toString().replace(/,/g, ''), 10) || 0;
+}
+
+window.checkCategoryOther = function() {
+const cat = document.getElementById('categoryType').value;
+const custom = document.getElementById('customCategory');
+if (cat === 'ອື່ນໆ') custom.classList.remove('hidden'); else { custom.classList.add('hidden'); custom.value = ''; }
+};
+
+window.addCustomExpenseRow = function(name = '', amount = '', currency = 'LAK') {
+const div = document.createElement('div');
+div.className = "flex gap-2 items-center";
+div.innerHTML = `<input type="text" placeholder="ຊື່ຄ່າໃຊ້ຈ່າຍ..." value="${name}" class="w-1/2 bg-white border border-slate-300 rounded-2xl px-3 py-2 text-xs font-bold custom-exp-name"><input type="text" inputmode="numeric" placeholder="ຈຳນວນ" value="${amount?parseInt(amount,10).toLocaleString():''}" oninput="window.formatMoneyInput(this)" class="w-1/4 bg-white border border-slate-300 rounded-2xl px-2.5 py-2 text-xs font-bold custom-exp-amount text-right"><select class="w-1/4 bg-white border border-slate-300 rounded-2xl px-1.5 py-2 text-[11px] font-bold custom-exp-currency"><option value="LAK" ${currency==='LAK'?'selected':''}>₭ LAK</option><option value="THB" ${currency==='THB'?'selected':''}>฿ THB</option><option value="USD" ${currency==='USD'?'selected':''}>$ USD</option></select><button type="button" onclick="this.closest('.flex').remove()" class="text-rose-500 px-1.5"><i class="fa-solid fa-trash"></i></button>`;
+document.getElementById('customExpenseRowsContainer').appendChild(div);
+};
+
+window.addWithdrawRow = function(name = '', amount = '', currency = 'LAK') {
+const div = document.createElement('div');
+div.className = "flex gap-2 items-center";
+div.innerHTML = `<input type="text" placeholder="ຊື່ຜູ້ເບີກ..." value="${name}" class="w-1/2 bg-white border border-slate-300 rounded-2xl px-3 py-2 text-xs font-bold withdraw-name"><input type="text" inputmode="numeric" placeholder="ຈຳນວນ" value="${amount?parseInt(amount,10).toLocaleString():''}" oninput="window.formatMoneyInput(this)" class="w-1/4 bg-white border border-slate-300 rounded-2xl px-2.5 py-2 text-xs font-bold withdraw-amount text-right"><select class="w-1/4 bg-white border border-slate-300 rounded-2xl px-1.5 py-2 text-[11px] font-bold withdraw-currency"><option value="LAK" ${currency==='LAK'?'selected':''}>₭ LAK</option><option value="THB" ${currency==='THB'?'selected':''}>฿ THB</option><option value="USD" ${currency==='USD'?'selected':''}>$ USD</option></select><button type="button" onclick="this.closest('.flex').remove()" class="text-rose-500 px-1.5"><i class="fa-solid fa-trash"></i></button>`;
+document.getElementById('withdrawRowsContainer').appendChild(div);
+};
+
+window.openModal = function(editId = null) {
+const monthFilterVal = document.getElementById('monthFilter').value;
+if (monthFilterVal !== 'all' && !monthFilterVal.startsWith('year_') && getLockedMonths()[monthFilterVal]) {
+showAlert(`ເດືອນ ${monthFilterVal} ຖືກລ໋ອກແລ້ວ`, null, 'error'); return;
+}
+document.getElementById('recordId').value = '';
+document.getElementById('seqNo').value = '';
+setDefaultDate();
+document.getElementById('categoryType').value = 'ຜູ້ປ່ວຍສຸກເສີນ';
+document.getElementById('customCategory').classList.add('hidden');
+document.getElementById('patientName').value = '';
+document.getElementById('pickupLocation').value = '';
+document.getElementById('dropoffLocation').value = '';
+document.getElementById('incomeAmount').value = '';
+document.getElementById('fuelAmount').value = '';
+document.getElementById('foodAmount').value = '';
+document.getElementById('customExpenseRowsContainer').innerHTML = '';
+document.getElementById('withdrawRowsContainer').innerHTML = '';
+document.getElementById('note').value = '';
+
+if (editId) {
+const r = records.find(x => x.id === editId);
+if (r) {
+const recYm = r.datetime ? r.datetime.slice(0, 7) : '';
+let savedUser = {};
+try { savedUser = JSON.parse(localStorage.getItem('auth_user') || sessionStorage.getItem('auth_user') || '{}'); } catch(e){}
+if (getLockedMonths()[recYm] && savedUser.role !== 'admin') { showAlert('ເດືອນນີ້ຖືກລ໋ອກແລ້ວ', null, 'error'); return; }
+document.getElementById('modalTitle').innerText = 'ແກ້ໄຂຂໍ້ມູນ';
+document.getElementById('recordId').value = r.id;
+document.getElementById('seqNo').value = r.seqNo || '';
+document.getElementById('datetime').value = r.datetime || '';
+const catSelect = document.getElementById('categoryType');
+if (Array.from(catSelect.options).map(o => o.value).includes(r.categoryType)) {
+catSelect.value = r.categoryType;
+} else {
+catSelect.value = 'ອື່ນໆ';
+document.getElementById('customCategory').classList.remove('hidden');
+document.getElementById('customCategory').value = r.categoryType || '';
+}
+document.getElementById('patientName').value = r.patientName || '';
+document.getElementById('pickupLocation').value = r.pickupLocation || '';
+document.getElementById('dropoffLocation').value = r.dropoffLocation || '';
+document.getElementById('incomeAmount').value = r.incomeAmount ? r.incomeAmount.toLocaleString() : '';
+document.getElementById('incomeCurrency').value = r.incomeCurrency || 'LAK';
+document.getElementById('fuelAmount').value = r.fuelAmount ? r.fuelAmount.toLocaleString() : '';
+document.getElementById('fuelCurrency').value = r.fuelCurrency || 'LAK';
+document.getElementById('foodAmount').value = r.foodAmount ? r.foodAmount.toLocaleString() : '';
+document.getElementById('foodCurrency').value = r.foodCurrency || 'LAK';
+document.getElementById('note').value = r.note || '';
+if (r.customExpenses) r.customExpenses.forEach(e => window.addCustomExpenseRow(e.name, e.amount, e.currency));
+if (r.withdrawers) r.withdrawers.forEach(w => window.addWithdrawRow(w.name, w.amount, w.currency));
+else if (r.withdrawAmount) window.addWithdrawRow(r.withdrawerName || 'ຜູ້ເບີກ', r.withdrawAmount, r.withdrawCurrency);
+}
+} else {
+document.getElementById('modalTitle').innerText = 'ເພີ່ມຂໍ້ມູນການນຳສົ່ງ ແລະ ບັນຊີ';
+const todayYm = new Date().toISOString().slice(0, 7);
+let maxSeq = 0;
+records.filter(r => r.datetime && r.datetime.startsWith(todayYm)).forEach(r => {
+const s = parseInt(r.seqNo) || 0; if (s > maxSeq) maxSeq = s;
+});
+document.getElementById('seqNo').value = (maxSeq + 1).toString().padStart(2, '0');
+}
+document.getElementById('recordModal')?.classList.remove('hidden');
+toggleBodyScrollLock(true);
+};
+
+window.handleSubmit = async function() {
+if (!user) return;
+const id = document.getElementById('recordId').value;
+const recordData = {
+seqNo: document.getElementById('seqNo').value.trim(),
+datetime: document.getElementById('datetime').value,
+categoryType: document.getElementById('categoryType').value === 'ອື່ນໆ' ? (document.getElementById('customCategory').value.trim() || 'ອື່ນໆ') : document.getElementById('categoryType').value,
+patientName: document.getElementById('patientName').value.trim(),
+pickupLocation: document.getElementById('pickupLocation').value.trim(),
+dropoffLocation: document.getElementById('dropoffLocation').value.trim(),
+incomeAmount: parseMoney(document.getElementById('incomeAmount').value),
+incomeCurrency: document.getElementById('incomeCurrency').value,
+fuelAmount: parseMoney(document.getElementById('fuelAmount').value),
+fuelCurrency: document.getElementById('fuelCurrency').value,
+foodAmount: parseMoney(document.getElementById('foodAmount').value),
+foodCurrency: document.getElementById('foodCurrency').value,
+customExpenses: Array.from(document.querySelectorAll('#customExpenseRowsContainer > div')).map(row => ({
+name: row.querySelector('.custom-exp-name').value.trim(),
+amount: parseMoney(row.querySelector('.custom-exp-amount').value),
+currency: row.querySelector('.custom-exp-currency').value
+})).filter(e => e.name || e.amount > 0),
+withdrawers: Array.from(document.querySelectorAll('#withdrawRowsContainer > div')).map(row => ({
+name: row.querySelector('.withdraw-name').value.trim(),
+amount: parseMoney(row.querySelector('.withdraw-amount').value),
+currency: row.querySelector('.withdraw-currency').value
+})).filter(w => w.name || w.amount > 0),
+note: document.getElementById('note').value.trim(),
+updatedAt: Date.now()
+};
+
+try {
+if (id) await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'ambulance_records', id), recordData, { merge: true });
+else { recordData.createdAt = Date.now(); await setDoc(doc(collection(db, 'artifacts', appId, 'public', 'data', 'ambulance_records')), recordData); }
+window.closeModal();
+showAlert('ບັນທຶກຂໍ້ມູນສຳເລັດຮຽບຮ້ອຍ', null, 'success');
+} catch(e) { showAlert('ເກີດຂໍ້ຜິດພາດໃນການບັນທຶກ', null, 'error'); }
+};
+
+function showAlert(msg, cb = null, type = 'success') {
+document.getElementById('alertMessage').innerText = msg;
+const iconContainer = document.getElementById('alertIconContainer');
+const icon = document.getElementById('alertIcon');
+if (type === 'error') { iconContainer.className = "text-3xl text-rose-500"; icon.className = "fa-solid fa-circle-exclamation"; }
+else { iconContainer.className = "text-3xl text-emerald-500"; icon.className = "fa-solid fa-circle-check"; }
+alertCallback = cb;
+document.getElementById('alertModal')?.classList.remove('hidden');
+toggleBodyScrollLock(true);
+}
+
+function updateMonthDropdown() {
+const select = document.getElementById('monthFilter');
+const currentVal = select.value;
+let monthsSet = new Set(), yearsSet = new Set();
+records.forEach(r => {
+if (r.datetime && r.datetime.length >= 7) { monthsSet.add(r.datetime.slice(0, 7)); yearsSet.add(r.datetime.slice(0, 4)); }
+});
+const currentYm = new Date().toISOString().slice(0, 7);
+monthsSet.add(currentYm);
+
+let html = '<option value="all">ທັງໝົດ (All)</option>';
+Array.from(yearsSet).sort().reverse().forEach(y => html += `<option value="year_${y}">ປີ ${y}</option>`);
+Array.from(monthsSet).sort().reverse().forEach(ym => {
+const [y, m] = ym.split('-');
+html += `<option value="${ym}">ເດືອນ ${m}/${y}</option>`;
+});
+select.innerHTML = html;
+if (!isInitialMonthSet) { if (Array.from(select.options).some(o => o.value === currentYm)) select.value = currentYm; isInitialMonthSet = true; }
+else if (Array.from(select.options).some(o => o.value === currentVal)) select.value = currentVal;
+}
+
+window.filterRecords = function() {
+const search = document.getElementById('searchInput').value.toLowerCase().trim();
+const monthVal = document.getElementById('monthFilter').value;
+const filtered = records.filter(r => {
+const dt = r.datetime || '';
+if (monthVal !== 'all') {
+if (monthVal.startsWith('year_')) { if (!dt.startsWith(monthVal.replace('year_', ''))) return false; }
+else { if (!dt.startsWith(monthVal)) return false; }
+}
+if (search) {
+if (!(r.patientName||'').toLowerCase().includes(search) && !(r.pickupLocation||'').toLowerCase().includes(search) && !(r.dropoffLocation||'').toLowerCase().includes(search) && !(r.categoryType||'').toLowerCase().includes(search)) return false;
+}
+return true;
+});
+renderTable(filtered);
+};
+
+function formatDateToDisplay(dateStr) {
+if (!dateStr) return '-';
+const parts = dateStr.split('-');
+return parts.length === 3 ? `${parts[2]}.${parts[1]}.${parts[0]}` : dateStr;
+}
+
+function renderTable(dataList) {
+const tbody = document.getElementById('recordTableBody'), emptyState = document.getElementById('emptyState');
+document.getElementById('filterCountInfo').innerHTML = `ສະແດງທັງໝົດ ${dataList.length} ລາຍການ`;
+
+const monthVal = document.getElementById('monthFilter').value;
+const summaryMonthLabel = document.getElementById('summaryMonthLabel'), summaryTotalCasesLabel = document.getElementById('summaryTotalCasesLabel');
+if (summaryMonthLabel && summaryTotalCasesLabel) {
+if (monthVal === 'all') summaryMonthLabel.innerText = '(ທັງໝົດ)';
+else if (monthVal.startsWith('year_')) summaryMonthLabel.innerText = `(ປີ ${monthVal.replace('year_', '')})`;
+else { const [y, m] = monthVal.split('-'); summaryMonthLabel.innerText = `(ເດືອນ ${m}/${y})`; }
+summaryTotalCasesLabel.innerHTML = `<i class="fa-solid fa-list-check text-blue-600 text-xs mr-1"></i>(ລວມທັງໝົດ ${dataList.length} ເຄສ)`;
+}
+
+let savedUser = {};
+try { savedUser = JSON.parse(localStorage.getItem('auth_user') || sessionStorage.getItem('auth_user') || '{}'); } catch(e){}
+const isAdminOrEdit = (savedUser.role === 'admin' || savedUser.staffPermission !== 'view');
+const isAdmin = (savedUser.role === 'admin');
+const lockedMonths = getLockedMonths();
+
+document.getElementById('tableHeaderAction').style.display = isAdminOrEdit ? '' : 'none';
+
+let sumIncLAK = 0, sumFuelLAK = 0, sumFoodLAK = 0, sumWithdrawLAK = 0, sumCustomLAK = 0, customExpMapTotal = {};
+
+if (dataList.length === 0) {
+tbody.innerHTML = '';
+emptyState.classList.remove('hidden');
+document.getElementById('sumNetText').innerText = '0 ₭';
+document.getElementById('dashboardSummaryTbody').innerHTML = `
+<tr class="bg-slate-50/50"><td class="py-2.5 px-3.5 border border-slate-200 font-bold text-emerald-700 text-sm"><i class="fa-solid fa-arrow-trend-up mr-2"></i>ລາຍຮັບລວມ</td><td class="py-2.5 px-3.5 border border-slate-200 text-right text-base font-black text-emerald-700">0 ₭</td></tr>
+<tr class="bg-slate-50/50"><td class="py-2.5 px-3.5 border border-slate-200 font-bold text-rose-700 text-xs sm:text-sm"><i class="fa-solid fa-gas-pump mr-2"></i>ຄ່ານ້ຳມັນລວມ</td><td class="py-2.5 px-3.5 border border-slate-200 text-right text-xs sm:text-sm font-bold text-rose-700">0 ₭</td></tr>
+<tr class="bg-slate-50/50"><td class="py-2.5 px-3.5 border border-slate-200 font-bold text-amber-700 text-xs sm:text-sm"><i class="fa-solid fa-utensils mr-2"></i>ຄ່າກິນລວມ</td><td class="py-2.5 px-3.5 border border-slate-200 text-right text-xs sm:text-sm font-bold text-amber-700">0 ₭</td></tr>
+<tr class="bg-slate-50/50"><td class="py-2.5 px-3.5 border border-slate-200 font-bold text-purple-700 text-xs sm:text-sm"><i class="fa-solid fa-wallet mr-2"></i>ເງິນເບີກລວມ</td><td class="py-2.5 px-3.5 border border-slate-200 text-right text-xs sm:text-sm font-bold text-purple-700">0 ₭</td></tr>
+<tr class="bg-slate-50/50"><td class="py-2.5 px-3.5 border border-slate-200 font-bold text-teal-700 text-xs sm:text-sm"><i class="fa-solid fa-receipt mr-2"></i>ຄ່າໃຊ້ຈ່າຍອື່ນໆລວມ</td><td class="py-2.5 px-3.5 border border-slate-200 text-right text-xs sm:text-sm font-bold text-teal-700">0 ₭</td></tr>
+<tr class="bg-blue-50 font-bold"><td class="py-3 px-3.5 border border-blue-200 text-blue-950 text-sm font-black"><i class="fa-solid fa-scale-balanced mr-2"></i>ຍອດເງີນເຫຼືອທັງໝົດ</td><td class="py-3 px-3.5 border border-blue-200 text-right text-base font-black text-blue-900" id="sumNetText">0 ₭</td></tr>
+`;
+return;
+}
+emptyState.classList.add('hidden');
+let html = '';
+
+let isGroupedView = (monthVal === 'all' || monthVal.startsWith('year_'));
+let monthGroups = {};
+if (isGroupedView) {
+dataList.forEach(r => {
+const ym = (r.datetime || '').length >= 7 ? r.datetime.slice(0, 7) : 'unknown';
+if (!monthGroups[ym]) monthGroups[ym] = [];
+monthGroups[ym].push(r);
+});
+} else { monthGroups[monthVal] = dataList; }
+
+let globalSeqCounter = 0;
+Object.keys(monthGroups).sort().reverse().forEach(ym => {
+let groupList = monthGroups[ym];
+const isLocked = !!lockedMonths[ym];
+
+if (isGroupedView && ym !== 'unknown') {
+let [yr, mn] = ym.split('-');
+let lockBtnHtml = isAdmin ? (isLocked ? `<button type="button" onclick="window.toggleMonthLock('${ym}')" class="bg-amber-600 text-white text-[10px] px-3 py-1.5 rounded-xl font-bold shadow-sm"><i class="fa-solid fa-lock"></i> ປົດລ໋ອກ</button>` : `<button type="button" onclick="window.toggleMonthLock('${ym}')" class="bg-slate-700 text-white text-[10px] px-3 py-1.5 rounded-xl font-bold shadow-sm"><i class="fa-solid fa-lock-open"></i> ລ໋ອກເດືອນ</button>`) : (isLocked ? `<span class="bg-rose-100 text-rose-700 text-[10px] px-2.5 py-1 rounded-xl font-bold">ລ໋ອກແລ້ວ</span>` : '');
+html += `<tr class="bg-blue-50/80 text-blue-950 font-bold text-xs"><td colspan="13" class="py-2.5 px-3.5 border-y border-blue-200"><div class="flex justify-between items-center w-full"><div class="flex items-center gap-2"><i class="fa-solid fa-calendar-days text-blue-600"></i><span>ເດືອນ ${mn}/${yr} (ມີ ${groupList.length} ເຄສ) ${isLocked ? '<span class="text-rose-600">(🔒 ລ໋ອກ)</span>' : ''}</span></div><div>${lockBtnHtml}</div></div></td></tr>`;
+}
+
+groupList.forEach((r) => {
+globalSeqCounter++;
+const displaySeq = globalSeqCounter.toString().padStart(2, '0');
+const incAmt = r.incomeAmount || 0, incCurr = r.incomeCurrency || 'LAK', incLAK = convertToLAK(incAmt, incCurr);
+sumIncLAK += incLAK;
+const fuelAmt = r.fuelAmount || 0, fuelCurr = r.fuelCurrency || 'LAK', fuelLAK = convertToLAK(fuelAmt, fuelCurr);
+sumFuelLAK += fuelLAK;
+const foodAmt = r.foodAmount || 0, foodCurr = r.foodCurrency || 'LAK', foodLAK = convertToLAK(foodAmt, foodCurr);
+sumFoodLAK += foodLAK;
+
+let withdrawText = '-', withdrawSumLAK = 0;
+if (r.withdrawers && Array.isArray(r.withdrawers) && r.withdrawers.length > 0) {
+withdrawText = r.withdrawers.map(w => {
+const wAmt = w.amount || 0, wCurr = w.currency || 'LAK', wLAK = convertToLAK(wAmt, wCurr);
+withdrawSumLAK += wLAK;
+return `<div class="mb-1"><strong class="block whitespace-nowrap">• ${w.name}: ${wAmt > 0 ? wAmt.toLocaleString() + ' ' + wCurr : '0'}</strong>${wCurr !== 'LAK' && wAmt > 0 ? `<div class="text-[10px] text-slate-500 whitespace-nowrap">≈ ${wLAK.toLocaleString()} ₭</div>` : ''}</div>`;
+}).join('');
+} else if (r.withdrawAmount) {
+const wAmt = r.withdrawAmount || 0, wCurr = r.withdrawCurrency || 'LAK', wLAK = convertToLAK(wAmt, wCurr);
+withdrawSumLAK += wLAK;
+withdrawText = `<div><strong class="block whitespace-nowrap">• ${r.withdrawerName || 'ຜູ້ເບີກ'}: ${wAmt > 0 ? wAmt.toLocaleString() + ' ' + wCurr : '0'}</strong>${wCurr !== 'LAK' && wAmt > 0 ? `<div class="text-[10px] text-slate-500 whitespace-nowrap">≈ ${wLAK.toLocaleString()} ₭</div>` : ''}</div>`;
+}
+sumWithdrawLAK += withdrawSumLAK;
+
+let customExpText = '-', customSumLAK = 0;
+if (r.customExpenses && Array.isArray(r.customExpenses)) {
+customExpText = r.customExpenses.map(e => {
+const eAmt = e.amount || 0, eCurr = e.currency || 'LAK', eLAK = convertToLAK(eAmt, eCurr);
+customSumLAK += eLAK;
+const expName = e.name ? e.name.trim() : 'ອື່ນໆ';
+customExpMapTotal[expName] = (customExpMapTotal[expName] || 0) + eLAK;
+return `<div class="mb-1"><strong class="block whitespace-nowrap">• ${expName}: ${eAmt > 0 ? eAmt.toLocaleString() + ' ' + eCurr : '0'}</strong>${eCurr !== 'LAK' && eAmt > 0 ? `<div class="text-[10px] text-slate-500 whitespace-nowrap">≈ ${eLAK.toLocaleString()} ₭</div>` : ''}</div>`;
+}).join('');
+}
+sumCustomLAK += customSumLAK;
+
+const caseNetLAK = incLAK - (fuelLAK + foodLAK + withdrawSumLAK + customSumLAK);
+const netDisplayCurrency = incCurr !== 'LAK' ? incCurr : 'LAK';
+const netDisplayAmount = convertFromLAK(caseNetLAK, netDisplayCurrency);
+
+let actionButtons = `<button type="button" onclick="window.openCasePrintModal('${r.id}')" class="bg-emerald-50 text-emerald-600 px-3 py-1.5 rounded-xl font-bold shadow-sm" title="ພິມ"><i class="fa-solid fa-print"></i></button>`;
+if (isAdminOrEdit) {
+if (!isLocked || isAdmin) {
+actionButtons += `<span class="flex gap-1.5 ml-1.5"><button type="button" onclick="window.openModal('${r.id}')" class="bg-amber-50 text-amber-600 px-3 py-1.5 rounded-xl font-bold shadow-sm"><i class="fa-solid fa-pen"></i></button>${isAdmin ? `<button type="button" data-id="${r.id}" class="delete-btn bg-rose-50 text-rose-600 px-3 py-1.5 rounded-xl font-bold shadow-sm"><i class="fa-solid fa-trash"></i></button>` : ''}</span>`;
+} else { actionButtons += `<span class="text-xs text-rose-500 font-bold ml-1.5"><i class="fa-solid fa-lock"></i></span>`; }
+}
+
+html += `<tr class="hover:bg-blue-50/35 transition">
+<td class="py-3.5 px-3 text-center font-bold border-b">${displaySeq}</td>
+<td class="py-3.5 px-3 font-bold border-b whitespace-nowrap"><span class="bg-blue-50 text-blue-700 px-2.5 py-1 rounded-xl text-[11px] whitespace-nowrap">${r.categoryType || 'ທົ່ວໄປ'}</span></td>
+<td class="py-3.5 px-3 font-bold text-slate-900 border-b whitespace-nowrap">${r.patientName || '-'}</td>
+<td class="py-3.5 px-3 font-bold text-slate-800 border-b whitespace-nowrap">${r.datetime ? formatDateToDisplay(r.datetime) : '-'}</td>
+<td class="py-3.5 px-3 font-bold text-slate-900 border-b whitespace-nowrap"><div>ຕົ້ນທາງ: ${r.pickupLocation || '-'}</div><div>ປາຍທາງ: ${r.dropoffLocation || '-'}</div></td>
+<td class="py-3.5 px-3 text-right font-black text-emerald-700 border-b whitespace-nowrap">${incAmt > 0 ? `<div class="whitespace-nowrap">${incAmt.toLocaleString()} ${incCurr}</div>` : '-'}${incCurr !== 'LAK' && incAmt > 0 ? `<div class="text-[10px] text-slate-500 font-bold whitespace-nowrap">≈ ${incLAK.toLocaleString()} ₭</div>` : ''}</td>
+<td class="py-3.5 px-3 text-right font-black text-rose-700 border-b whitespace-nowrap">${fuelAmt > 0 ? `<div class="whitespace-nowrap">${fuelAmt.toLocaleString()} ${fuelCurr}</div>` : '-'}${fuelCurr !== 'LAK' && fuelAmt > 0 ? `<div class="text-[10px] text-slate-500 font-bold whitespace-nowrap">≈ ${fuelLAK.toLocaleString()} ₭</div>` : ''}</td>
+<td class="py-3.5 px-3 text-right font-black text-amber-700 border-b whitespace-nowrap">${foodAmt > 0 ? `<div class="whitespace-nowrap">${foodAmt.toLocaleString()} ${foodCurr}</div>` : '-'}${foodCurr !== 'LAK' && foodAmt > 0 ? `<div class="text-[10px] text-slate-500 font-bold whitespace-nowrap">≈ ${foodLAK.toLocaleString()} ₭</div>` : ''}</td>
+<td class="py-3.5 px-3 text-right font-bold text-purple-700 border-b">${withdrawText}</td>
+<td class="py-3.5 px-3 text-right font-bold text-teal-800 border-b">${customExpText}</td>
+<td class="py-3.5 px-3 text-right font-black bg-slate-50/50 ${caseNetLAK >= 0 ? 'text-slate-900' : 'text-rose-600'} border-b whitespace-nowrap"><div class="whitespace-nowrap">${Math.round(netDisplayAmount).toLocaleString()} ${netDisplayCurrency}</div>${netDisplayCurrency !== 'LAK' ? `<div class="text-[10px] text-slate-500 font-bold whitespace-nowrap">≈ ${caseNetLAK.toLocaleString()} ₭</div>` : ''}</td>
+<td class="py-3.5 px-3 font-bold text-slate-800 border-b whitespace-nowrap">${r.note || '-'}</td>
+<td class="py-3.5 px-3 text-center border-b whitespace-nowrap"><div class="flex items-center justify-center">${actionButtons}</div></td>
+</tr>`;
+});
+});
+
+tbody.innerHTML = html;
+
+let dashboardCustomTableRows = '';
+Object.entries(customExpMapTotal).forEach(([name, amt]) => {
+dashboardCustomTableRows += `<tr class="bg-slate-50/50"><td class="py-2 px-3.5 border border-slate-200 font-bold text-teal-700"><i class="fa-solid fa-receipt mr-2"></i>• ${name}</td><td class="py-2 px-3.5 border border-slate-200 text-right font-black text-teal-800">${amt.toLocaleString()} ₭</td></tr>`;
+});
+
+const totalExpenseAll = sumFuelLAK + sumFoodLAK + sumWithdrawLAK + sumCustomLAK;
+const netBalanceAll = sumIncLAK - totalExpenseAll;
+
+document.getElementById('dashboardSummaryTbody').innerHTML = `
+<tr class="bg-slate-50/50"><td class="py-2.5 px-3.5 border border-slate-200 font-bold text-emerald-700 text-sm"><i class="fa-solid fa-arrow-trend-up mr-2"></i>ລາຍຮັບລວມ</td><td class="py-2.5 px-3.5 border border-slate-200 text-right text-base font-black text-emerald-700">${sumIncLAK.toLocaleString()} ₭</td></tr>
+<tr class="bg-slate-50/50"><td class="py-2.5 px-3.5 border border-slate-200 font-bold text-rose-700 text-xs sm:text-sm"><i class="fa-solid fa-gas-pump mr-2"></i>ຄ່ານ້ຳມັນລວມ</td><td class="py-2.5 px-3.5 border border-slate-200 text-right text-xs sm:text-sm font-bold text-rose-700">${sumFuelLAK.toLocaleString()} ₭</td></tr>
+<tr class="bg-slate-50/50"><td class="py-2.5 px-3.5 border border-slate-200 font-bold text-amber-700 text-xs sm:text-sm"><i class="fa-solid fa-utensils mr-2"></i>ຄ່າກິນລວມ</td><td class="py-2.5 px-3.5 border border-slate-200 text-right text-xs sm:text-sm font-bold text-amber-700">${sumFoodLAK.toLocaleString()} ₭</td></tr>
+<tr class="bg-slate-50/50"><td class="py-2.5 px-3.5 border border-slate-200 font-bold text-purple-700 text-xs sm:text-sm"><i class="fa-solid fa-wallet mr-2"></i>ເງິນເບີກລວມ</td><td class="py-2.5 px-3.5 border border-slate-200 text-right text-xs sm:text-sm font-bold text-purple-700">${sumWithdrawLAK.toLocaleString()} ₭</td></tr>
+<tr class="bg-slate-50/50"><td class="py-2.5 px-3.5 border border-slate-200 font-bold text-teal-700 text-xs sm:text-sm"><i class="fa-solid fa-receipt mr-2"></i>ຄ່າໃຊ້ຈ່າຍອື່ນໆລວມ</td><td class="py-2.5 px-3.5 border border-slate-200 text-right text-xs sm:text-sm font-bold text-teal-800">${sumCustomLAK.toLocaleString()} ₭</td></tr>
+${dashboardCustomTableRows}
+<tr class="bg-blue-50 font-bold"><td class="py-3 px-3.5 border border-blue-200 text-blue-950 text-sm font-black"><i class="fa-solid fa-scale-balanced mr-2"></i>ຍອດເງີນເຫຼືອທັງໝົດ</td><td class="py-3 px-3.5 border border-blue-200 text-right text-base font-black ${netBalanceAll >= 0 ? 'text-blue-900' : 'text-rose-600'}" id="sumNetText">${netBalanceAll.toLocaleString()} ₭</td></tr>
+`;
+}
+</script>
+</body>
+</html>
